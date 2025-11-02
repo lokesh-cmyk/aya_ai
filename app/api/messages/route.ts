@@ -1,0 +1,150 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
+import { sendMessage } from '@/lib/integrations/factory';
+import { MessageChannel } from '@prisma/client';
+import { z } from 'zod';
+
+const sendMessageSchema = z.object({
+  contactId: z.string(),
+  channel: z.enum(['SMS', 'WHATSAPP', 'EMAIL', 'TWITTER', 'FACEBOOK']),
+  content: z.string().min(1),
+  mediaUrls: z.array(z.string()).optional(),
+  scheduledFor: z.string().datetime().optional(),
+  userId: z.string().optional(),
+});
+
+// Get messages with filters
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const contactId = searchParams.get('contactId');
+    const channel = searchParams.get('channel');
+    const status = searchParams.get('status');
+    const limit = parseInt(searchParams.get('limit') || '50');
+    const offset = parseInt(searchParams.get('offset') || '0');
+
+    const where: any = {};
+    
+    if (contactId) where.contactId = contactId;
+    if (channel) where.channel = channel;
+    if (status) where.status = status;
+
+    const messages = await prisma.message.findMany({
+      where,
+      include: {
+        contact: true,
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          }
+        },
+        replies: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+              }
+            }
+          }
+        }
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+      take: limit,
+      skip: offset,
+    });
+
+    const total = await prisma.message.count({ where });
+
+    return NextResponse.json({
+      messages,
+      pagination: {
+        total,
+        limit,
+        offset,
+        hasMore: offset + limit < total,
+      }
+    });
+  } catch (error) {
+    console.error('Get messages error:', error);
+    return NextResponse.json(
+      { error: 'Failed to fetch messages' },
+      { status: 500 }
+    );
+  }
+}
+
+// Send a new message
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const validated = sendMessageSchema.parse(body);
+
+    // Get contact details
+    const contact = await prisma.contact.findUnique({
+      where: { id: validated.contactId }
+    });
+
+    if (!contact) {
+      return NextResponse.json(
+        { error: 'Contact not found' },
+        { status: 404 }
+      );
+    }
+
+    // Determine recipient based on channel
+    let recipient = '';
+    switch (validated.channel) {
+      case 'SMS':
+      case 'WHATSAPP':
+        recipient = contact.phone || '';
+        break;
+      case 'EMAIL':
+        recipient = contact.email || '';
+        break;
+      case 'TWITTER':
+        recipient = contact.twitterHandle || '';
+        break;
+      case 'FACEBOOK':
+        recipient = contact.facebookId || '';
+        break;
+    }
+
+    if (!recipient) {
+      return NextResponse.json(
+        { error: `No ${validated.channel} contact info available` },
+        { status: 400 }
+      );
+    }
+
+    // Send message
+    const message = await sendMessage(validated.channel as MessageChannel, {
+      to: recipient,
+      body: validated.content,
+      mediaUrl: validated.mediaUrls,
+      contactId: validated.contactId,
+      userId: validated.userId,
+      scheduledFor: validated.scheduledFor ? new Date(validated.scheduledFor) : undefined,
+    });
+
+    return NextResponse.json(message, { status: 201 });
+  } catch (error) {
+    console.error('Send message error:', error);
+    
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { error: 'Invalid request data', details: error.errors },
+        { status: 400 }
+      );
+    }
+
+    return NextResponse.json(
+      { error: 'Failed to send message' },
+      { status: 500 }
+    );
+  }
+}
