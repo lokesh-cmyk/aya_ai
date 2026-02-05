@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { pipedream } from '@/lib/integrations/pipedream';
-import { auth } from '@/lib/auth';
+import { auth, getSessionCookie } from '@/lib/auth';
 import { z } from 'zod';
 
 const connectSchema = z.object({
@@ -15,7 +15,7 @@ const connectSchema = z.object({
 export async function GET(request: NextRequest) {
   try {
     const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get("better-auth.session_token");
+    const sessionCookie = getSessionCookie(cookieStore);
     
     if (!sessionCookie) {
       return NextResponse.json(
@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get("better-auth.session_token");
+    const sessionCookie = getSessionCookie(cookieStore);
     
     if (!sessionCookie) {
       return NextResponse.json(

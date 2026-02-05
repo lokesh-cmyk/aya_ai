@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { auth } from '@/lib/auth';
+import { auth, getSessionCookie } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
 // GET: Get a specific conversation with all messages
@@ -11,7 +11,7 @@ export async function GET(
   try {
     const { id } = await params;
     const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get("better-auth.session_token");
+    const sessionCookie = getSessionCookie(cookieStore);
     
     if (!sessionCookie) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -59,7 +59,7 @@ export async function DELETE(
   try {
     const { id } = await params;
     const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get("better-auth.session_token");
+    const sessionCookie = getSessionCookie(cookieStore);
     
     if (!sessionCookie) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -98,7 +98,7 @@ export async function PATCH(
   try {
     const { id } = await params;
     const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get("better-auth.session_token");
+    const sessionCookie = getSessionCookie(cookieStore);
     
     if (!sessionCookie) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

@@ -3,14 +3,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
 import { pipedream } from '@/lib/integrations/pipedream';
-import { auth } from '@/lib/auth';
+import { auth, getSessionCookie } from '@/lib/auth';
 
 // Get user's integrations
 export async function GET(request: NextRequest) {
   try {
     const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get("better-auth.session_token");
-    
+    const sessionCookie = getSessionCookie(cookieStore);
+
     if (!sessionCookie) {
       return NextResponse.json(
         { error: 'Unauthorized' },
@@ -58,8 +58,8 @@ export async function GET(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get("better-auth.session_token");
-    
+    const sessionCookie = getSessionCookie(cookieStore);
+
     if (!sessionCookie) {
       return NextResponse.json(
         { error: 'Unauthorized' },

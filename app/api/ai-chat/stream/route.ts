@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { cookies } from 'next/headers';
-import { auth } from '@/lib/auth';
+import { auth, getSessionCookie } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { streamText } from 'ai';
 import { anthropic } from '@ai-sdk/anthropic';
@@ -152,7 +152,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get("better-auth.session_token");
+    const sessionCookie = getSessionCookie(cookieStore);
 
     if (!sessionCookie) {
       return new Response(JSON.stringify({ error: 'Please sign in to continue' }), {

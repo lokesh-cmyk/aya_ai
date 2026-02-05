@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
 import { sendMessage } from '@/lib/integrations/factory';
+import { getSessionCookie } from '@/lib/auth';
 import { z } from 'zod';
 import { MessageChannel } from '@/app/generated/prisma/enums';
 
@@ -20,7 +21,7 @@ export async function GET(request: NextRequest) {
   try {
     // Verify authentication
     const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get("better-auth.session_token");
+    const sessionCookie = getSessionCookie(cookieStore);
     
     if (!sessionCookie) {
       return NextResponse.json(
@@ -132,7 +133,7 @@ export async function POST(request: NextRequest) {
   try {
     // Verify authentication
     const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get("better-auth.session_token");
+    const sessionCookie = getSessionCookie(cookieStore);
     
     if (!sessionCookie) {
       return NextResponse.json(

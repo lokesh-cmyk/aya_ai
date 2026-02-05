@@ -1,14 +1,14 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { auth } from '@/lib/auth';
+import { auth, getSessionCookie } from '@/lib/auth';
 import { SlackClient } from '@/lib/integrations/slack';
 
 // GET: List available Slack channels
 export async function GET(request: NextRequest) {
   try {
     const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get("better-auth.session_token");
+    const sessionCookie = getSessionCookie(cookieStore);
     
     if (!sessionCookie) {
       return NextResponse.json(
@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get("better-auth.session_token");
+    const sessionCookie = getSessionCookie(cookieStore);
     
     if (!sessionCookie) {
       return NextResponse.json(

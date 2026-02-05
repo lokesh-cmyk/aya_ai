@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
-import { auth } from '@/lib/auth';
+import { auth, getSessionCookie } from '@/lib/auth';
 import { z } from 'zod';
 import { PipedreamClient, ProjectEnvironment } from '@pipedream/sdk/server';
 
@@ -26,7 +26,7 @@ const DEFAULT_TOKEN_EXPIRY: Record<string, number> = {
 export async function POST(request: NextRequest) {
   try {
     const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get("better-auth.session_token");
+    const sessionCookie = getSessionCookie(cookieStore);
     
     if (!sessionCookie) {
       return NextResponse.json(

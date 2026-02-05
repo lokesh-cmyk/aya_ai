@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { PipedreamClient, ProjectEnvironment } from '@pipedream/sdk/server';
-import { auth } from '@/lib/auth';
+import { auth, getSessionCookie } from '@/lib/auth';
 
 const getProjectEnvironment = (): ProjectEnvironment => {
   const env = process.env.PIPEDREAM_PROJECT_ENVIRONMENT || 'development';
@@ -49,8 +49,8 @@ export async function POST(request: NextRequest) {
   try {
     // Verify authentication
     const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get("better-auth.session_token");
-    
+    const sessionCookie = getSessionCookie(cookieStore);
+
     if (!sessionCookie) {
       return NextResponse.json(
         { error: 'Unauthorized' },
