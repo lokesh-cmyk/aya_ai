@@ -128,7 +128,7 @@ export default function SignupPageWrapper() {
 
       await signIn.social({
         provider: "google",
-        callbackURL: "/",
+        callbackURL: "/onboarding",
       });
     } catch (err: any) {
       setError(err?.message || "Failed to sign up with Google");

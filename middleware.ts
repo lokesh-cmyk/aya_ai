@@ -14,13 +14,11 @@ export async function middleware(request: NextRequest) {
   const publicRoutes = ["/", "/login", "/signup"];
   const isPublicRoute = publicRoutes.includes(pathname);
 
-  // Check for session cookie - check ALL possible better-auth cookie names
-  // Better-auth may use different naming patterns depending on configuration
-  const allCookies = request.cookies.getAll();
-  const sessionCookie = allCookies.find(
-    (cookie) =>
-      cookie.name.includes("better-auth") && cookie.name.includes("session")
-  );
+  // Check for session cookie - check both standard and secure (HTTPS) cookie names
+  // In production with HTTPS, Better-Auth uses __Secure- prefix
+  const sessionCookie =
+    request.cookies.get("better-auth.session_token") ||
+    request.cookies.get("__Secure-better-auth.session_token");
 
   // If accessing a protected route, check for session
   if (!isPublicRoute) {
@@ -40,10 +38,10 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // If logged in and trying to access auth pages, redirect to landing page
-  // The landing page will show "Go to Dashboard" button
+  // If logged in and trying to access auth pages, redirect to onboarding
+  // Onboarding will check if user needs setup or can go directly to dashboard
   if (sessionCookie && (pathname === "/login" || pathname === "/signup")) {
-    return NextResponse.redirect(new URL("/", request.url));
+    return NextResponse.redirect(new URL("/onboarding", request.url));
   }
 
   return NextResponse.next();
