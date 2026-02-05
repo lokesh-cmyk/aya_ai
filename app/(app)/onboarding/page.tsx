@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "@/lib/auth-client";
 import { OnboardingFlow } from "@/components/onboarding/OnboardingFlow";
@@ -8,39 +8,70 @@ import { TeamInviteChecker } from "@/components/onboarding/TeamInviteChecker";
 
 type OnboardingPhase = "loading" | "invite-check" | "onboarding" | "complete";
 
+interface UserData {
+  id: string;
+  email: string;
+}
+
 export default function OnboardingPage() {
   const router = useRouter();
   const { data: session, isPending } = useSession();
   const [phase, setPhase] = useState<OnboardingPhase>("loading");
+  const [userData, setUserData] = useState<UserData | null>(null);
+  const hasCheckedRef = useRef(false);
 
-  // Check if user has completed onboarding or already has a team - skip to dashboard
+  // Use server-side auth check as fallback when client-side session is slow
   useEffect(() => {
-    const checkOnboardingStatus = async () => {
+    // Prevent multiple checks
+    if (hasCheckedRef.current) return;
+
+    const checkAuth = async () => {
+      // First try to use client-side session
       if (!isPending && session?.user?.id) {
-        try {
-          // Check user's onboarding status
-          const response = await fetch("/api/users/onboarding");
-          if (response.ok) {
-            const data = await response.json();
-            // If user has completed onboarding OR has a team, redirect to dashboard
-            // This handles returning users who signed up earlier
-            if (data.onboardingCompleted || data.hasTeam) {
-              router.push("/dashboard");
-              return;
+        hasCheckedRef.current = true;
+        setUserData({ id: session.user.id, email: session.user.email || "" });
+        await checkOnboardingStatus(session.user.id);
+        return;
+      }
+
+      // If client session is still pending after 2 seconds, use server-side check
+      if (isPending) {
+        const timeout = setTimeout(async () => {
+          if (!hasCheckedRef.current) {
+            try {
+              const res = await fetch("/api/auth/check", { credentials: "include" });
+              const data = await res.json();
+              if (data.authenticated && data.user) {
+                hasCheckedRef.current = true;
+                setUserData({ id: data.user.id, email: data.user.email || "" });
+                await checkOnboardingStatus(data.user.id);
+              }
+            } catch (error) {
+              console.error("Server auth check failed:", error);
             }
           }
-        } catch (error) {
-          console.error("Error checking onboarding status:", error);
-        }
-        // New user who hasn't completed onboarding - show invite checker
-        setPhase("invite-check");
+        }, 2000);
+        return () => clearTimeout(timeout);
       }
-      // Note: Don't redirect to /login here when session is undefined
-      // The middleware handles unauthenticated users, and this prevents
-      // a redirect loop when session is briefly undefined after OAuth
     };
 
-    checkOnboardingStatus();
+    const checkOnboardingStatus = async (userId: string) => {
+      try {
+        const response = await fetch("/api/users/onboarding", { credentials: "include" });
+        if (response.ok) {
+          const data = await response.json();
+          if (data.onboardingCompleted || data.hasTeam) {
+            router.push("/dashboard");
+            return;
+          }
+        }
+      } catch (error) {
+        console.error("Error checking onboarding status:", error);
+      }
+      setPhase("invite-check");
+    };
+
+    checkAuth();
   }, [session, isPending, router]);
 
   const handleComplete = () => {
@@ -61,8 +92,8 @@ export default function OnboardingPage() {
     setPhase("onboarding");
   };
 
-  // Loading state
-  if (isPending || !session || phase === "loading") {
+  // Loading state - show while checking auth
+  if (phase === "loading" || !userData) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
@@ -103,8 +134,8 @@ export default function OnboardingPage() {
   if (phase === "invite-check") {
     return (
       <TeamInviteChecker
-        userId={session.user.id}
-        userEmail={session.user.email || ""}
+        userId={userData.id}
+        userEmail={userData.email}
         onJoinTeam={handleJoinTeam}
         onSkipToOnboarding={handleSkipToOnboarding}
       />
@@ -114,7 +145,7 @@ export default function OnboardingPage() {
   // Onboarding phase - show the regular onboarding flow
   return (
     <OnboardingFlow
-      userId={session.user.id}
+      userId={userData.id}
       onComplete={handleComplete}
     />
   );

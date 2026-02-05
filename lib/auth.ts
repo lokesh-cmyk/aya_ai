@@ -38,8 +38,19 @@ export const auth = betterAuth({
   advanced: {
     cookiePrefix: "better-auth",
     useSecureCookies: isProduction,
+    defaultCookieAttributes: {
+      sameSite: "lax",
+      secure: isProduction,
+      httpOnly: true,
+      path: "/",
+    },
   },
-  trustedOrigins: process.env.BETTER_AUTH_URL ? [process.env.BETTER_AUTH_URL] : [],
+  trustedOrigins: [
+    "http://localhost:3000",
+    process.env.BETTER_AUTH_URL,
+    process.env.NEXT_PUBLIC_APP_URL,
+    "https://aya-ai-five.vercel.app",
+  ].filter(Boolean) as string[],
   socialProviders: Object.keys(socialProviders).length > 0 ? socialProviders : undefined,
   account: {
     accountLinking: {
