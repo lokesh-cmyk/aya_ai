@@ -1,7 +1,5 @@
 "use client";
 
-export const dynamic = 'force-dynamic';
-
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSession } from "@/lib/auth-client";
@@ -170,9 +168,15 @@ export default function AIChatPage() {
   });
 
   const conversations: Conversation[] = conversationsData?.conversations || [];
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
   const groupedConversations = useMemo(
-    () => groupConversationsByDate(conversations),
-    [conversations]
+    () => isMounted ? groupConversationsByDate(conversations) : { today: [], yesterday: [], thisWeek: [], thisMonth: [], older: [] },
+    [conversations, isMounted]
   );
 
   // Fetch selected conversation
@@ -292,13 +296,16 @@ export default function AIChatPage() {
     resetStream();
   };
 
-  const currentHour = new Date().getHours();
-  let greeting = "Good morning";
-  if (currentHour >= 12 && currentHour < 18) {
-    greeting = "Good afternoon";
-  } else if (currentHour >= 18) {
-    greeting = "Good evening";
-  }
+  const greeting = useMemo(() => {
+    if (!isMounted) return "Hello";
+    const currentHour = new Date().getHours();
+    if (currentHour >= 12 && currentHour < 18) {
+      return "Good afternoon";
+    } else if (currentHour >= 18) {
+      return "Good evening";
+    }
+    return "Good morning";
+  }, [isMounted]);
 
   const userInitial = session?.user?.name?.charAt(0) || session?.user?.email?.charAt(0) || "U";
   const isProcessing = isStreaming || isWaitingForResponse;
