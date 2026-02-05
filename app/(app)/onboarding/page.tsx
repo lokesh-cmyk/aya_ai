@@ -34,9 +34,10 @@ export default function OnboardingPage() {
         }
         // New user who hasn't completed onboarding - show invite checker
         setPhase("invite-check");
-      } else if (!isPending && !session) {
-        router.push("/login");
       }
+      // Note: Don't redirect to /login here when session is undefined
+      // The middleware handles unauthenticated users, and this prevents
+      // a redirect loop when session is briefly undefined after OAuth
     };
 
     checkOnboardingStatus();
