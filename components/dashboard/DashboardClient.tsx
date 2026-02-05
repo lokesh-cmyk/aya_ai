@@ -1,36 +1,8 @@
 "use client";
 
-import { useSession } from "@/lib/auth-client";
-import { useRouter } from "next/navigation";
-import { useEffect } from "react";
-
-// Client component for client-side checks and redirects
+// Client component for client-side effects
+// Note: Removed automatic onboarding redirect to prevent redirect loops
+// New users go to /onboarding after signup, existing users go directly to dashboard
 export function DashboardClient() {
-  const { data: session } = useSession();
-  const router = useRouter();
-
-  // Check if user needs onboarding (only for brand new users)
-  useEffect(() => {
-    const checkOnboardingStatus = async () => {
-      if (session?.user?.id) {
-        try {
-          const response = await fetch("/api/users/onboarding");
-          if (response.ok) {
-            const data = await response.json();
-            // Only redirect to onboarding if user hasn't completed it AND has no team
-            // This ensures returning users go to dashboard even without a team
-            if (!data.onboardingCompleted && !data.hasTeam) {
-              router.push("/onboarding");
-            }
-          }
-        } catch (error) {
-          console.error("Error checking onboarding status:", error);
-        }
-      }
-    };
-
-    checkOnboardingStatus();
-  }, [session?.user?.id, router]);
-
-  return null; // This component only handles side effects
+  return null;
 }

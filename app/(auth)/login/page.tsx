@@ -54,8 +54,8 @@ export default function LoginPage() {
       if (result.error) {
         setError(result.error.message || "Invalid email or password");
       } else {
-        // Go to onboarding - it will check if setup needed or redirect to dashboard
-        router.push("/onboarding");
+        // Existing users go directly to dashboard
+        router.push("/dashboard");
         router.refresh();
       }
     } catch (err) {
@@ -71,7 +71,7 @@ export default function LoginPage() {
     try {
       await signIn.social({
         provider: "google",
-        callbackURL: "/onboarding",
+        callbackURL: "/dashboard",
       });
     } catch (err: any) {
       setError(err?.message || "Failed to sign in with Google");
