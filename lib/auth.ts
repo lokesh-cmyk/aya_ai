@@ -14,6 +14,8 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
   };
 }
 
+const isProduction = process.env.NODE_ENV === "production";
+
 export const auth = betterAuth({
   database: prismaAdapter(prisma, {
     provider: "postgresql",
@@ -23,20 +25,25 @@ export const auth = betterAuth({
   secret: process.env.BETTER_AUTH_SECRET || process.env.AUTH_SECRET || "change-this-secret-in-production",
   emailAndPassword: {
     enabled: true,
-    requireEmailVerification: false, // Set to true in production
+    requireEmailVerification: false,
   },
   session: {
     expiresIn: 60 * 60 * 24 * 7, // 7 days
     updateAge: 60 * 60 * 24, // 1 day
+    cookieCache: {
+      enabled: true,
+      maxAge: 60 * 5, // 5 minutes
+    },
   },
+  advanced: {
+    cookiePrefix: "better-auth",
+    useSecureCookies: isProduction,
+  },
+  trustedOrigins: process.env.BETTER_AUTH_URL ? [process.env.BETTER_AUTH_URL] : [],
   socialProviders: Object.keys(socialProviders).length > 0 ? socialProviders : undefined,
-  // Account linking: When a user signs in with a social provider (Google) using
-  // an email that already exists, link the account to the existing user
-  // instead of creating a new user
   account: {
     accountLinking: {
       enabled: true,
-      // Trust emails from OAuth providers (Google verifies email ownership)
       trustedProviders: ["google"],
     },
   },
