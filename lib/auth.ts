@@ -75,3 +75,19 @@ export const auth = betterAuth({
 
 export type Session = typeof auth.$Infer.Session;
 
+// Cookie names for session token
+// In production with HTTPS, Better-Auth uses __Secure- prefix
+export const SESSION_COOKIE_NAMES = [
+  "better-auth.session_token",
+  "__Secure-better-auth.session_token",
+] as const;
+
+// Helper to get session cookie from cookie store
+export function getSessionCookie(cookieStore: { get: (name: string) => { value: string } | undefined }) {
+  for (const name of SESSION_COOKIE_NAMES) {
+    const cookie = cookieStore.get(name);
+    if (cookie) return cookie;
+  }
+  return undefined;
+}
+

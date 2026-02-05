@@ -1,7 +1,6 @@
 import { Suspense } from "react";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
-import { redirect } from "next/navigation";
 import { DashboardStats } from "@/components/dashboard/DashboardStats";
 import { DashboardActivity } from "@/components/dashboard/DashboardActivity";
 import { DashboardClient } from "@/components/dashboard/DashboardClient";
@@ -28,17 +27,16 @@ function DashboardLoadingFallback() {
   );
 }
 
-// Async component that handles authentication
+// Async component that fetches user data
+// Auth is already checked by AuthCheck in layout - no redirect here to prevent loops
 async function DashboardContent() {
   const session = await auth.api.getSession({
     headers: await headers(),
   });
 
-  if (!session?.user) {
-    redirect("/login");
-  }
-
-  const userName = session.user.name?.split(" ")[0] || "there";
+  // Don't redirect here - AuthCheck in layout handles auth
+  // If no session, show generic greeting (edge case - shouldn't happen)
+  const userName = session?.user?.name?.split(" ")[0] || "there";
 
   return (
     <>
