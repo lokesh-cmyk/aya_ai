@@ -74,7 +74,6 @@ export default function SignupPageWrapper() {
       }
 
       // Then assign to team/organization
-      let hasTeam = false;
       if (result.data?.user?.id) {
         try {
           const teamResponse = await fetch("/api/auth/signup", {
@@ -95,20 +94,13 @@ export default function SignupPageWrapper() {
             setIsLoading(false);
             return;
           }
-
-          const teamData = await teamResponse.json();
-          hasTeam = !!teamData.teamId || data.joinTeam;
         } catch (teamError) {
           console.error("Team assignment error:", teamError);
         }
       }
 
-      // Success - redirect based on whether user has a team
-      if (hasTeam && data.joinTeam) {
-        router.push("/dashboard");
-      } else {
-        router.push("/onboarding");
-      }
+      // Success - go to onboarding to complete setup
+      router.push("/onboarding");
       router.refresh();
     } catch (err: any) {
       console.error("Signup error:", err);

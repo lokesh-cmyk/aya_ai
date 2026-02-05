@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { OnboardingFlow } from "@/components/onboarding/OnboardingFlow";
 import { TeamInviteChecker } from "@/components/onboarding/TeamInviteChecker";
 
-type OnboardingPhase = "loading" | "invite-check" | "onboarding" | "complete";
+type OnboardingPhase = "loading" | "invite-check" | "onboarding" | "complete" | "error";
 
 interface UserData {
   id: string;
@@ -18,21 +18,22 @@ export default function OnboardingPage() {
   const [userData, setUserData] = useState<UserData | null>(null);
 
   useEffect(() => {
-    const checkAuth = async () => {
+    const initialize = async () => {
       try {
-        // Use server-side auth check
+        // Get user data - middleware already ensures we're authenticated
+        // Don't redirect to login here, that causes loops
         const res = await fetch("/api/auth/check", { credentials: "include" });
         const data = await res.json();
 
         if (!data.authenticated || !data.user) {
-          // Not authenticated, redirect to login
-          router.push("/login");
+          // Show error state instead of redirecting (prevents loop)
+          setPhase("error");
           return;
         }
 
         setUserData({ id: data.user.id, email: data.user.email || "" });
 
-        // Check onboarding status
+        // Check if user already completed onboarding
         const onboardingRes = await fetch("/api/users/onboarding", { credentials: "include" });
         if (onboardingRes.ok) {
           const onboardingData = await onboardingRes.json();
@@ -45,12 +46,12 @@ export default function OnboardingPage() {
         // User needs onboarding
         setPhase("invite-check");
       } catch (error) {
-        console.error("Auth check failed:", error);
-        router.push("/login");
+        console.error("Initialization failed:", error);
+        setPhase("error");
       }
     };
 
-    checkAuth();
+    initialize();
   }, [router]);
 
   const handleComplete = () => {
@@ -69,10 +70,36 @@ export default function OnboardingPage() {
   };
 
   // Loading state
-  if (phase === "loading" || !userData) {
+  if (phase === "loading") {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  // Error state - don't redirect to login (causes loop), show retry option
+  if (phase === "error" || !userData) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50">
+        <div className="text-center p-8">
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">Session Error</h2>
+          <p className="text-gray-600 mb-6">Unable to load your session. Please try again.</p>
+          <div className="flex gap-4 justify-center">
+            <button
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              Retry
+            </button>
+            <button
+              onClick={() => router.push("/login")}
+              className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+            >
+              Go to Login
+            </button>
+          </div>
+        </div>
       </div>
     );
   }

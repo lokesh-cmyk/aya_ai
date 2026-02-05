@@ -54,7 +54,7 @@ export default function LoginPage() {
       if (result.error) {
         setError(result.error.message || "Invalid email or password");
       } else {
-        // Redirect to onboarding which will check if user needs setup or can go to dashboard
+        // Go to onboarding - it will check if setup needed or redirect to dashboard
         router.push("/onboarding");
         router.refresh();
       }

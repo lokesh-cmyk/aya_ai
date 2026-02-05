@@ -39,7 +39,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // If logged in and trying to access auth pages, redirect to onboarding
-  // Onboarding will check if user needs setup or can go directly to dashboard
+  // Onboarding will check if setup is needed or redirect to dashboard
   if (sessionCookie && (pathname === "/login" || pathname === "/signup")) {
     return NextResponse.redirect(new URL("/onboarding", request.url));
   }
