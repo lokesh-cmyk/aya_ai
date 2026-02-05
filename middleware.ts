@@ -14,11 +14,13 @@ export async function middleware(request: NextRequest) {
   const publicRoutes = ["/", "/login", "/signup"];
   const isPublicRoute = publicRoutes.includes(pathname);
 
-  // Check for session cookie (handle both secure and non-secure prefixes)
-  // In production with HTTPS, cookies may use __Secure- prefix
-  const sessionCookie =
-    request.cookies.get("better-auth.session_token") ||
-    request.cookies.get("__Secure-better-auth.session_token");
+  // Check for session cookie - check ALL possible better-auth cookie names
+  // Better-auth may use different naming patterns depending on configuration
+  const allCookies = request.cookies.getAll();
+  const sessionCookie = allCookies.find(
+    (cookie) =>
+      cookie.name.includes("better-auth") && cookie.name.includes("session")
+  );
 
   // If accessing a protected route, check for session
   if (!isPublicRoute) {
