@@ -47,6 +47,19 @@ export const auth = betterAuth({
       trustedProviders: ["google"],
     },
   },
+  databaseHooks: {
+    user: {
+      create: {
+        after: async (user) => {
+          // Set default role to ADMIN for all new users (including OAuth signups)
+          await prisma.user.update({
+            where: { id: user.id },
+            data: { role: "ADMIN" },
+          });
+        },
+      },
+    },
+  },
 });
 
 export type Session = typeof auth.$Infer.Session;

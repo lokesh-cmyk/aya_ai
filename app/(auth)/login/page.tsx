@@ -70,6 +70,7 @@ export default function LoginPage() {
     try {
       await signIn.social({
         provider: "google",
+        callbackURL: "/onboarding",
       });
     } catch (err: any) {
       setError(err?.message || "Failed to sign in with Google");
