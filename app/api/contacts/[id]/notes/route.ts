@@ -11,9 +11,10 @@ const createNoteSchema = z.object({
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const body = await request.json();
     const validated = createNoteSchema.parse(body);
 
@@ -23,7 +24,7 @@ export async function POST(
     const note = await prisma.note.create({
       data: {
         ...validated,
-        contactId: params.id,
+        contactId: id,
         mentions,
       },
       include: {
@@ -43,7 +44,7 @@ export async function POST(
     
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: 'Invalid request data', details: error.errors },
+        { error: 'Invalid request data', details: error.issues },
         { status: 400 }
       );
     }

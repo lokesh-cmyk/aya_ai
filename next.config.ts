@@ -1,7 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Enable Partial Pre-rendering (PPR) via cacheComponents
+  cacheComponents: true,
 };
 
 export default nextConfig;

@@ -1,8 +1,9 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { MessageChannel } from '@prisma/client';
+import { MessageChannel } from '@/app/generated/prisma/enums';
 import { Search, Filter, Plus, Phone, Mail, MessageSquare } from 'lucide-react';
 import { ContactThread } from './ContactThread';
 import { MessageComposer } from './MessageComposer';
@@ -15,6 +16,9 @@ interface Contact {
   email?: string;
   messages: any[];
   _count: { messages: number };
+  tags?: string[];
+  isVerified?: boolean;
+  createdAt?: string;
 }
 
 export function UnifiedInbox() {
@@ -25,7 +29,7 @@ export function UnifiedInbox() {
   const queryClient = useQueryClient();
 
   // Fetch contacts with latest messages
-  const { data: contactsData, isLoading } = useQuery({
+  const { data: contactsData, isLoading: contactsLoading } = useQuery({
     queryKey: ['contacts', searchQuery],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -35,14 +39,94 @@ export function UnifiedInbox() {
       if (!res.ok) throw new Error('Failed to fetch contacts');
       return res.json();
     },
+    refetchInterval: 5000, // Refetch every 5 seconds for real-time updates
   });
 
-  const contacts = contactsData?.contacts || [];
+  // Fetch internal team messages
+  const { data: internalData } = useQuery({
+    queryKey: ['internal-messages'],
+    queryFn: async () => {
+      const res = await fetch('/api/messages/internal');
+      if (!res.ok) throw new Error('Failed to fetch internal messages');
+      return res.json();
+    },
+    refetchInterval: 5000, // Refetch every 5 seconds for real-time updates
+  });
+
+  // Fetch Gmail emails using MCP
+  const { data: gmailData } = useQuery({
+    queryKey: ['gmail-emails', searchQuery],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (searchQuery) {
+        params.append('query', `in:inbox ${searchQuery}`);
+      }
+      params.append('maxResults', '50');
+      
+      const res = await fetch(`/api/emails/gmail?${params}`);
+      if (!res.ok) {
+        // Don't throw error - Gmail might not be connected
+        return { contacts: [] };
+      }
+      return res.json();
+    },
+    refetchInterval: 5000, // Refetch every 5 seconds for real-time updates
+    retry: 1,
+  });
+
+  const regularContacts = contactsData?.contacts || [];
+  const internalContacts = internalData?.contacts || [];
+  const gmailContacts = gmailData?.contacts || [];
+
+  // Merge contacts intelligently
+  const contactsMap = new Map<string, Contact & { isInternal?: boolean; isGmail?: boolean }>();
+  
+  // Add regular contacts first
+  regularContacts.forEach((c: Contact) => {
+    const key = c.email?.toLowerCase() || c.id;
+    contactsMap.set(key, { ...c, isInternal: false, isGmail: false });
+  });
+
+  // Add internal contacts
+  internalContacts.forEach((c: any) => {
+    const key = c.email?.toLowerCase() || c.id;
+    if (!contactsMap.has(key)) {
+      contactsMap.set(key, { ...c, isInternal: true, isGmail: false });
+    }
+  });
+
+  // Add Gmail contacts, merge if email matches
+  gmailContacts.forEach((gmailContact: Contact) => {
+    const key = gmailContact.email?.toLowerCase() || gmailContact.id;
+    const existing = contactsMap.get(key);
+    
+    if (existing) {
+      // Merge: combine messages
+      existing.messages = [
+        ...(existing.messages || []),
+        ...(gmailContact.messages || []),
+      ].sort((a: any, b: any) => 
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+      existing._count = { messages: existing.messages.length };
+    } else {
+      // Add new Gmail contact
+      contactsMap.set(key, {
+        ...gmailContact,
+        isInternal: false,
+        isGmail: true,
+      });
+    }
+  });
+  
+  // Combine all contacts
+  const allContacts = Array.from(contactsMap.values());
 
   // Filter contacts by channel
-  const filteredContacts = contacts.filter((contact: Contact) => {
+  const filteredContacts = allContacts.filter((contact: Contact & { isInternal?: boolean }) => {
     if (selectedChannel === 'ALL') return true;
-    return contact.messages.some(m => m.channel === selectedChannel);
+    if (contact.isInternal && selectedChannel === 'EMAIL') return true; // Show internal messages in EMAIL filter
+    return contact.messages?.some((m: any) => m.channel === selectedChannel);
   });
 
   const channelBadge = (channel: MessageChannel) => {
@@ -112,7 +196,7 @@ export function UnifiedInbox() {
 
         {/* Contact Threads */}
         <div className="flex-1 overflow-y-auto">
-          {isLoading ? (
+          {contactsLoading ? (
             <div className="flex items-center justify-center h-32">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
             </div>
@@ -123,9 +207,9 @@ export function UnifiedInbox() {
             </div>
           ) : (
             <div className="divide-y divide-gray-100">
-              {filteredContacts.map((contact: Contact) => {
-                const latestMessage = contact.messages[0];
-                const unreadCount = contact.messages.filter(m => 
+              {filteredContacts.map((contact: Contact & { isInternal?: boolean; isGmail?: boolean }) => {
+                const latestMessage = contact.messages?.[0];
+                const unreadCount = (contact.messages || []).filter((m: any) => 
                   m.direction === 'INBOUND' && !m.readAt
                 ).length;
 
@@ -143,6 +227,16 @@ export function UnifiedInbox() {
                           <h3 className="font-semibold text-gray-900 truncate">
                             {contact.name || contact.phone || contact.email}
                           </h3>
+                          {contact.isInternal && (
+                            <span className="inline-flex items-center px-1.5 py-0.5 text-xs font-medium text-purple-700 bg-purple-100 rounded">
+                              Team
+                            </span>
+                          )}
+                          {contact.isGmail && (
+                            <span className="inline-flex items-center px-1.5 py-0.5 text-xs font-medium text-red-700 bg-red-100 rounded">
+                              Gmail
+                            </span>
+                          )}
                           {unreadCount > 0 && (
                             <span className="inline-flex items-center justify-center px-2 py-0.5 text-xs font-bold text-white bg-blue-600 rounded-full">
                               {unreadCount}
@@ -153,12 +247,19 @@ export function UnifiedInbox() {
                         <div className="flex items-center gap-2 mb-2">
                           {latestMessage && channelBadge(latestMessage.channel)}
                           <span className="text-xs text-gray-500">
-                            {new Date(latestMessage?.createdAt).toLocaleDateString()}
+                            {latestMessage?.createdAt ? new Date(latestMessage.createdAt).toLocaleDateString() : ''}
                           </span>
                         </div>
 
                         <p className="text-sm text-gray-600 truncate">
-                          {latestMessage?.content || 'No messages yet'}
+                          {contact.isGmail && latestMessage?.subject ? (
+                            <>
+                              <span className="font-medium">{latestMessage.subject}</span>
+                              {latestMessage.content && ` - ${latestMessage.content}`}
+                            </>
+                          ) : (
+                            latestMessage?.content || 'No messages yet'
+                          )}
                         </p>
                       </div>
 

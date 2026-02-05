@@ -2,9 +2,9 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tantml:react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Send, Paperclip, Image as ImageIcon, Clock, CheckCheck, X } from 'lucide-react';
-import { MessageChannel } from '@prisma/client';
+import { MessageChannel } from '@/app/generated/prisma/enums';
 
 interface Message {
   id: string;
@@ -25,6 +25,8 @@ interface Contact {
   name: string;
   phone?: string;
   email?: string;
+  isInternal?: boolean;
+  tags?: string[];
 }
 
 export function ContactThread({ contact, onClose }: { contact: Contact; onClose: () => void }) {
@@ -34,13 +36,25 @@ export function ContactThread({ contact, onClose }: { contact: Contact; onClose:
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
 
+  // Check if this is an internal contact
+  const isInternal = contact.isInternal || contact.tags?.includes('internal');
+
   // Fetch messages for this contact
   const { data: messagesData, isLoading } = useQuery({
-    queryKey: ['messages', contact.id],
+    queryKey: ['messages', contact.id, isInternal],
     queryFn: async () => {
-      const res = await fetch(`/api/messages?contactId=${contact.id}`);
-      if (!res.ok) throw new Error('Failed to fetch messages');
-      return res.json();
+      if (isInternal) {
+        // For internal messages, fetch from internal endpoint with contactId
+        const res = await fetch(`/api/messages/internal?contactId=${contact.id}`);
+        if (!res.ok) throw new Error('Failed to fetch internal messages');
+        const data = await res.json();
+        // Return messages from the contact
+        return { messages: data.contacts?.[0]?.messages || [] };
+      } else {
+        const res = await fetch(`/api/messages?contactId=${contact.id}`);
+        if (!res.ok) throw new Error('Failed to fetch messages');
+        return res.json();
+      }
     },
     refetchInterval: 5000, // Poll every 5 seconds for new messages
   });
@@ -55,7 +69,8 @@ export function ContactThread({ contact, onClose }: { contact: Contact; onClose:
   // Send message mutation
   const sendMessageMutation = useMutation({
     mutationFn: async (data: any) => {
-      const res = await fetch('/api/messages', {
+      const endpoint = isInternal ? '/api/messages/internal' : '/api/messages';
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
@@ -68,18 +83,28 @@ export function ContactThread({ contact, onClose }: { contact: Contact; onClose:
       setScheduledFor('');
       queryClient.invalidateQueries({ queryKey: ['messages', contact.id] });
       queryClient.invalidateQueries({ queryKey: ['contacts'] });
+      queryClient.invalidateQueries({ queryKey: ['internal-messages'] });
     },
   });
 
   const handleSend = () => {
     if (!messageContent.trim()) return;
 
-    sendMessageMutation.mutate({
-      contactId: contact.id,
-      channel: selectedChannel,
-      content: messageContent,
-      scheduledFor: scheduledFor || undefined,
-    });
+    if (isInternal) {
+      // Send internal message using email
+      sendMessageMutation.mutate({
+        recipientEmail: contact.email,
+        content: messageContent,
+      });
+    } else {
+      // Send external message
+      sendMessageMutation.mutate({
+        contactId: contact.id,
+        channel: selectedChannel,
+        content: messageContent,
+        scheduledFor: scheduledFor || undefined,
+      });
+    }
   };
 
   const getStatusIcon = (message: Message) => {

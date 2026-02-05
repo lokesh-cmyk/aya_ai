@@ -1,0 +1,79 @@
+// config/platforms.ts
+import { 
+    Mail, 
+    MessageSquare, 
+    Linkedin, 
+    Instagram, 
+    Slack, 
+    Github,
+    FileText,
+    Table,
+  } from "lucide-react";
+  
+  export const platforms = [
+    {
+      id: 'gmail',
+      name: 'Gmail',
+      icon: Mail,
+      description: 'Connect your Gmail account to sync emails',
+      color: 'text-red-600',
+      bgColor: 'bg-red-50',
+    },
+    // {
+    //   id: 'outlook',
+    //   name: 'Outlook',
+    //   icon: Mail,
+    //   description: 'Connect your Outlook account to sync emails',
+    //   color: 'text-blue-600',
+    //   bgColor: 'bg-blue-50',
+    // },
+    {
+      id: 'slack',
+      name: 'Slack',
+      icon: Slack,
+      description: 'Connect Slack workspace for team messages',
+      color: 'text-purple-600',
+      bgColor: 'bg-purple-50',
+    },
+    // {
+    //   id: 'whatsapp',
+    //   name: 'WhatsApp',
+    //   icon: MessageSquare,
+    //   description: 'Connect WhatsApp Business account',
+    //   color: 'text-green-600',
+    //   bgColor: 'bg-green-50',
+    // },
+    // {
+    //   id: 'linkedin',
+    //   name: 'LinkedIn',
+    //   icon: Linkedin,
+    //   description: 'Connect LinkedIn for messages and updates',
+    //   color: 'text-blue-600',
+    //   bgColor: 'bg-blue-50',
+    // },
+
+    // {
+    //   id: 'github',
+    //   name: 'GitHub',
+    //   icon: Github,
+    //   description: 'Connect GitHub for repository updates',
+    //   color: 'text-gray-600',
+    //   bgColor: 'bg-gray-50',
+    // },
+    // {
+    //   id: 'notion',
+    //   name: 'Notion',
+    //   icon: FileText,
+    //   description: 'Connect Notion for workspace integration',
+    //   color: 'text-gray-700',
+    //   bgColor: 'bg-gray-50',
+    // },
+    // {
+    //   id: 'google_sheets',
+    //   name: 'Google Sheets',
+    //   icon: Table,
+    //   description: 'Connect Google Sheets for data sync',
+    //   color: 'text-green-600',
+    //   bgColor: 'bg-green-50',
+    // },
+  ];

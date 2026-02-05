@@ -1,7 +1,8 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // lib/integrations/twilio.ts
 import twilio from 'twilio';
 import { prisma } from '@/lib/prisma';
-import { MessageChannel, MessageDirection, MessageStatus } from '@prisma/client';
+import { MessageChannel, MessageDirection, MessageStatus } from '@/app/generated/prisma/enums';
 
 const accountSid = process.env.TWILIO_ACCOUNT_SID!;
 const authToken = process.env.TWILIO_AUTH_TOKEN!;
@@ -207,7 +208,7 @@ export async function getAvailableNumbers(areaCode?: string) {
   const numbers = await twilioClient.availablePhoneNumbers('US')
     .local
     .list({
-      areaCode,
+      areaCode: areaCode ? parseInt(areaCode, 10) : undefined,
       smsEnabled: true,
       mmsEnabled: true,
       limit: 20

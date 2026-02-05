@@ -1,6 +1,7 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { prisma } from '@/lib/prisma';
 import { sendMessage } from '@/lib/integrations/factory';
-import { MessageStatus, MessageChannel } from '@prisma/client';
+import { MessageStatus, MessageChannel } from '@/app/generated/prisma/enums';
 
 /**
  * Process scheduled messages that are due

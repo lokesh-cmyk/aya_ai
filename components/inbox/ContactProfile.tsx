@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // components/inbox/ContactProfile.tsx
 'use client';
 
@@ -26,10 +27,10 @@ interface Contact {
   email?: string;
   twitterHandle?: string;
   facebookId?: string;
-  tags: string[];
+  tags?: string[];
   customFields?: Record<string, any>;
-  isVerified: boolean;
-  createdAt: string;
+  isVerified?: boolean;
+  createdAt?: string;
 }
 
 export function ContactProfile({ contact, onUpdate }: { contact: Contact; onUpdate: () => void }) {

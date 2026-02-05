@@ -1,3 +1,6 @@
+import { prisma } from "../prisma";
+import { MessageChannel, MessageDirection, MessageStatus } from "../../app/generated/prisma/enums"; // Adjust path as needed
+
 // lib/integrations/facebook.ts
 interface SendFacebookMessageParams {
   recipientId: string;
@@ -81,6 +84,7 @@ export async function sendFacebookMessage(params: SendFacebookMessageParams) {
 /**
  * Process Facebook webhook for incoming messages
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function processFacebookWebhook(body: any) {
   const { entry } = body;
 

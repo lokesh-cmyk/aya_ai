@@ -1,5 +1,7 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // app/api/contacts/route.ts
 import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 
@@ -10,20 +12,52 @@ const createContactSchema = z.object({
   twitterHandle: z.string().optional(),
   facebookId: z.string().optional(),
   tags: z.array(z.string()).optional(),
-  customFields: z.record(z.any()).optional(),
+  customFields: z.record(z.string(), z.any()).optional(),
   teamId: z.string().optional(),
 });
 
 // Get all contacts
 export async function GET(request: NextRequest) {
   try {
+    // Verify authentication
+    const cookieStore = await cookies();
+    const sessionCookie = cookieStore.get("better-auth.session_token");
+    
+    if (!sessionCookie) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    const { auth } = await import('@/lib/auth');
+    const session = await auth.api.getSession({
+      headers: request.headers,
+    });
+
+    if (!session?.user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    // Get user's team
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { teamId: true },
+    });
+
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search');
     const tags = searchParams.get('tags')?.split(',');
     const limit = parseInt(searchParams.get('limit') || '50');
     const offset = parseInt(searchParams.get('offset') || '0');
 
-    const where: any = {};
+    const where: any = {
+      // Filter by team
+      teamId: user?.teamId || null,
+    };
 
     if (search) {
       where.OR = [
@@ -99,12 +133,42 @@ export async function GET(request: NextRequest) {
 // Create new contact
 export async function POST(request: NextRequest) {
   try {
+    // Verify authentication
+    const cookieStore = await cookies();
+    const sessionCookie = cookieStore.get("better-auth.session_token");
+    
+    if (!sessionCookie) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    const { auth } = await import('@/lib/auth');
+    const session = await auth.api.getSession({
+      headers: request.headers,
+    });
+
+    if (!session?.user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    // Get user's team
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { teamId: true },
+    });
+
     const body = await request.json();
     const validated = createContactSchema.parse(body);
 
-    // Check for duplicates
+    // Check for duplicates within the same team
     const existing = await prisma.contact.findFirst({
       where: {
+        teamId: user?.teamId || null,
         OR: [
           validated.phone ? { phone: validated.phone } : {},
           validated.email ? { email: validated.email } : {},
@@ -120,12 +184,40 @@ export async function POST(request: NextRequest) {
     }
 
     const contact = await prisma.contact.create({
-      data: validated,
+      data: {
+        ...validated,
+        teamId: validated.teamId || user?.teamId || null,
+      },
       include: {
         messages: true,
         notes: true,
       }
     });
+
+    // Bidirectional contact creation via Inngest:
+    // If the contact's email matches an existing user account,
+    // and that user has an organization (teamId),
+    // automatically create a reverse contact entry in that user's organization
+    if (validated.email) {
+      try {
+        const { inngest } = await import('@/lib/inngest/client');
+        await inngest.send({
+          name: 'contact/create.bidirectional',
+          data: {
+            contactId: contact.id,
+            contactEmail: validated.email,
+            userId: session.user.id,
+            teamId: user?.teamId || '',
+          },
+        }).catch((err) => {
+          console.error('Failed to send bidirectional contact event:', err);
+          // Don't fail the contact creation if event fails
+        });
+      } catch (error: any) {
+        // Log error but don't fail the contact creation
+        console.error('Error triggering bidirectional contact creation:', error);
+      }
+    }
 
     return NextResponse.json(contact, { status: 201 });
   } catch (error) {
@@ -133,7 +225,7 @@ export async function POST(request: NextRequest) {
     
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: 'Invalid request data', details: error.errors },
+        { error: 'Invalid request data', details: error.issues },
         { status: 400 }
       );
     }

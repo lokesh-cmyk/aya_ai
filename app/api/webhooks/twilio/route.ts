@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { processTwilioWebhook, handleTwilioStatus } from '@/lib/integrations/twilio';
+import { processTwilioWebhook } from '@/lib/integrations/twilio';
 import twilio from 'twilio';
 
 const authToken = process.env.TWILIO_AUTH_TOKEN!;

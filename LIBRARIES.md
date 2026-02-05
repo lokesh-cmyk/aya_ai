@@ -18,7 +18,7 @@ npm install \
   recharts@2.10.3 \
   clsx@2.0.0 \
   tailwind-merge@2.1.0 \
-  better-auth@latest \
+    \
   date-fns@3.0.0 \
   crypto-js@4.2.0 \
   && \

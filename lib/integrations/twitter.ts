@@ -1,6 +1,6 @@
 // lib/integrations/twitter.ts
 import { prisma } from '@/lib/prisma';
-import { MessageChannel, MessageDirection, MessageStatus } from '@prisma/client';
+import { MessageChannel, MessageDirection, MessageStatus } from '@/app/generated/prisma/enums';
 
 interface SendTwitterDMParams {
   recipientId: string;
@@ -85,6 +85,7 @@ export async function sendTwitterDM(params: SendTwitterDMParams) {
 /**
  * Process Twitter webhook for incoming DMs
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function processTwitterWebhook(body: any) {
   const { direct_message_events } = body;
 

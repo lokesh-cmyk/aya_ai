@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
@@ -40,19 +41,19 @@ export async function GET(request: NextRequest) {
     if (format === 'csv') {
       // Generate CSV
       const headers = ['Date', 'Channel', 'Direction', 'Status', 'Contact', 'Content', 'User'];
-      const rows = messages.map(m => [
+      const rows = messages.map((m) => [
         m.createdAt.toISOString(),
         m.channel,
         m.direction,
         m.status,
         m.contact.name || m.contact.phone || m.contact.email || 'Unknown',
-        m.content.replace(/,/g, ';').substring(0, 100),
+        (m.content || '').replace(/,/g, ';').substring(0, 100),
         m.user?.name || 'System',
       ]);
 
       const csv = [
         headers.join(','),
-        ...rows.map(row => row.join(','))
+        ...rows.map((row) => row.join(','))
       ].join('\n');
 
       return new NextResponse(csv, {

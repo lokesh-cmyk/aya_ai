@@ -1,5 +1,6 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // lib/integrations/factory.ts
-import { MessageChannel } from '@prisma/client';
+import { MessageChannel } from '../../app/generated/prisma/enums';
 import { sendTwilioMessage } from './twilio';
 import { sendEmail } from './email';
 import { sendTwitterDM } from './twitter';

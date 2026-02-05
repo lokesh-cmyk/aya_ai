@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createMessageTemplate, scheduleFromTemplate } from '@/lib/scheduler';
-import { MessageChannel } from '@prisma/client';
+import { MessageChannel } from '@/app/generated/prisma/enums';
 import { z } from 'zod';
 
 const createTemplateSchema = z.object({
@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
     
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: 'Invalid request data', details: error.errors },
+        { error: 'Invalid request data', details: error.issues },
         { status: 400 }
       );
     }

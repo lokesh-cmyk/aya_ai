@@ -1,8 +1,8 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // lib/integrations/email.ts
 import { Resend } from 'resend';
 import { prisma } from '@/lib/prisma';
-import { MessageChannel, MessageDirection, MessageStatus } from '@prisma/client';
-
+import { MessageChannel, MessageDirection, MessageStatus } from '@/app/generated/prisma/enums';
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 interface SendEmailParams {

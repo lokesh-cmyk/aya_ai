@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls:*)",
+      "Bash(npm run build:*)",
+      "Bash(npm install:*)",
+      "WebSearch",
+      "Bash(wc:*)",
+      "WebFetch(domain:www.patterns.dev)",
+      "Bash(find:*)",
+      "WebFetch(domain:docs.mem0.ai)"
+    ]
+  }
+}

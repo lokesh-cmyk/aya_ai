@@ -1,10 +1,11 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // components/inbox/MessageComposer.tsx
 'use client';
 
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { X, Send, Clock, User } from 'lucide-react';
-import { MessageChannel } from '@prisma/client';
+import { MessageChannel } from '@/app/generated/prisma/enums';
 
 interface MessageComposerProps {
   onClose: () => void;
@@ -196,7 +197,7 @@ export function MessageComposer({ onClose, onSent, preselectedContact }: Message
             {selectedContact && !['SMS', 'WHATSAPP'].some(c => channel === c && selectedContact.phone) &&
              !(channel === 'EMAIL' && selectedContact.email) && (
               <p className="mt-2 text-sm text-amber-600">
-                Selected contact doesn't have {channel} information
+                Selected contact doesn&apos;t have {channel} information
               </p>
             )}
           </div>
