@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useSession } from "@/lib/auth-client";
 import { OnboardingFlow } from "@/components/onboarding/OnboardingFlow";
 import { TeamInviteChecker } from "@/components/onboarding/TeamInviteChecker";
 
@@ -15,84 +14,61 @@ interface UserData {
 
 export default function OnboardingPage() {
   const router = useRouter();
-  const { data: session, isPending } = useSession();
   const [phase, setPhase] = useState<OnboardingPhase>("loading");
   const [userData, setUserData] = useState<UserData | null>(null);
-  const hasCheckedRef = useRef(false);
 
-  // Use server-side auth check as fallback when client-side session is slow
   useEffect(() => {
-    // Prevent multiple checks
-    if (hasCheckedRef.current) return;
-
     const checkAuth = async () => {
-      // First try to use client-side session
-      if (!isPending && session?.user?.id) {
-        hasCheckedRef.current = true;
-        setUserData({ id: session.user.id, email: session.user.email || "" });
-        await checkOnboardingStatus(session.user.id);
-        return;
-      }
-
-      // If client session is still pending after 2 seconds, use server-side check
-      if (isPending) {
-        const timeout = setTimeout(async () => {
-          if (!hasCheckedRef.current) {
-            try {
-              const res = await fetch("/api/auth/check", { credentials: "include" });
-              const data = await res.json();
-              if (data.authenticated && data.user) {
-                hasCheckedRef.current = true;
-                setUserData({ id: data.user.id, email: data.user.email || "" });
-                await checkOnboardingStatus(data.user.id);
-              }
-            } catch (error) {
-              console.error("Server auth check failed:", error);
-            }
-          }
-        }, 2000);
-        return () => clearTimeout(timeout);
-      }
-    };
-
-    const checkOnboardingStatus = async (userId: string) => {
       try {
-        const response = await fetch("/api/users/onboarding", { credentials: "include" });
-        if (response.ok) {
-          const data = await response.json();
-          if (data.onboardingCompleted || data.hasTeam) {
+        // Use server-side auth check
+        const res = await fetch("/api/auth/check", { credentials: "include" });
+        const data = await res.json();
+
+        if (!data.authenticated || !data.user) {
+          // Not authenticated, redirect to login
+          router.push("/login");
+          return;
+        }
+
+        setUserData({ id: data.user.id, email: data.user.email || "" });
+
+        // Check onboarding status
+        const onboardingRes = await fetch("/api/users/onboarding", { credentials: "include" });
+        if (onboardingRes.ok) {
+          const onboardingData = await onboardingRes.json();
+          if (onboardingData.onboardingCompleted || onboardingData.hasTeam) {
             router.push("/dashboard");
             return;
           }
         }
+
+        // User needs onboarding
+        setPhase("invite-check");
       } catch (error) {
-        console.error("Error checking onboarding status:", error);
+        console.error("Auth check failed:", error);
+        router.push("/login");
       }
-      setPhase("invite-check");
     };
 
     checkAuth();
-  }, [session, isPending, router]);
+  }, [router]);
 
   const handleComplete = () => {
     setPhase("complete");
-    // Redirect to dashboard after a short delay
     setTimeout(() => {
       router.push("/dashboard");
     }, 1000);
   };
 
-  const handleJoinTeam = (teamId: string, teamName: string) => {
-    // User joined a team via invite - redirect to dashboard
+  const handleJoinTeam = () => {
     router.push("/dashboard");
   };
 
   const handleSkipToOnboarding = () => {
-    // User wants to create their own organization
     setPhase("onboarding");
   };
 
-  // Loading state - show while checking auth
+  // Loading state
   if (phase === "loading" || !userData) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -121,16 +97,14 @@ export default function OnboardingPage() {
               />
             </svg>
           </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">
-            All set!
-          </h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">All set!</h2>
           <p className="text-gray-600">Redirecting to your dashboard...</p>
         </div>
       </div>
     );
   }
 
-  // Invite check phase - show team invite checker first
+  // Invite check phase
   if (phase === "invite-check") {
     return (
       <TeamInviteChecker
@@ -142,7 +116,7 @@ export default function OnboardingPage() {
     );
   }
 
-  // Onboarding phase - show the regular onboarding flow
+  // Onboarding phase
   return (
     <OnboardingFlow
       userId={userData.id}
@@ -150,4 +124,3 @@ export default function OnboardingPage() {
     />
   );
 }
-

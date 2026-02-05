@@ -10,20 +10,25 @@ import { CurrentYear } from "@/components/landing/CurrentYear";
 
 export default function LandingPage() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isChecking, setIsChecking] = useState(true);
 
   useEffect(() => {
     // Check for session cookie on client side
     const checkAuth = async () => {
       try {
-        const response = await fetch("/api/auth/check", { method: "GET" });
+        const response = await fetch("/api/auth/check", {
+          method: "GET",
+          credentials: "include",
+        });
         if (response.ok) {
           const data = await response.json();
-          if (data.authenticated) {
-            window.location.href = "/dashboard";
-          }
+          setIsLoggedIn(data.authenticated);
         }
       } catch {
         // Not logged in, stay on landing page
+        setIsLoggedIn(false);
+      } finally {
+        setIsChecking(false);
       }
     };
     checkAuth();
@@ -100,18 +105,31 @@ export default function LandingPage() {
               </div>
             </div>
             <div className="flex items-center gap-4">
-              <Link
-                href="/login"
-                className="text-sm hover:opacity-60 transition-opacity"
-              >
-                Log In
-              </Link>
-              <Link
-                href="/signup"
-                className="text-sm bg-[#111] text-white px-5 py-2 rounded-full hover:bg-[#333] transition-colors"
-              >
-                Join AYA
-              </Link>
+              {isChecking ? (
+                <div className="w-20 h-8" />
+              ) : isLoggedIn ? (
+                <Link
+                  href="/dashboard"
+                  className="text-sm bg-[#111] text-white px-5 py-2 rounded-full hover:bg-[#333] transition-colors"
+                >
+                  Go to Dashboard
+                </Link>
+              ) : (
+                <>
+                  <Link
+                    href="/login"
+                    className="text-sm hover:opacity-60 transition-opacity"
+                  >
+                    Log In
+                  </Link>
+                  <Link
+                    href="/signup"
+                    className="text-sm bg-[#111] text-white px-5 py-2 rounded-full hover:bg-[#333] transition-colors"
+                  >
+                    Join AYA
+                  </Link>
+                </>
+              )}
             </div>
           </div>
         </div>

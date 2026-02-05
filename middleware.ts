@@ -38,10 +38,10 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // If logged in and trying to access auth pages, redirect to onboarding
-  // The onboarding page will check if user needs onboarding or can go to dashboard
+  // If logged in and trying to access auth pages, redirect to landing page
+  // The landing page will show "Go to Dashboard" button
   if (sessionCookie && (pathname === "/login" || pathname === "/signup")) {
-    return NextResponse.redirect(new URL("/onboarding", request.url));
+    return NextResponse.redirect(new URL("/", request.url));
   }
 
   return NextResponse.next();
