@@ -15,6 +15,15 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+} from "@/components/ui/alert-dialog";
+import {
   Building2,
   Users,
   Mail,
@@ -26,19 +35,26 @@ import {
   XCircle,
   Calendar,
   UserCheck,
+  AlertTriangle,
 } from "lucide-react";
-import { useSession } from "@/lib/auth-client";
+import { useSession, signOut } from "@/lib/auth-client";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 export default function OrganizationSettingsPage() {
   const { data: session } = useSession();
   const queryClient = useQueryClient();
+  const router = useRouter();
   const [teamName, setTeamName] = useState("");
   const [isInviting, setIsInviting] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<"ADMIN" | "EDITOR" | "VIEWER">("EDITOR");
   const [inviteError, setInviteError] = useState("");
   const [removingMemberId, setRemovingMemberId] = useState<string | null>(null);
+  const [deleteOrgDialogOpen, setDeleteOrgDialogOpen] = useState(false);
+  const [deleteAccountDialogOpen, setDeleteAccountDialogOpen] = useState(false);
+  const [deleteOrgConfirmation, setDeleteOrgConfirmation] = useState("");
+  const [deleteAccountConfirmation, setDeleteAccountConfirmation] = useState("");
 
   // Fetch team data
   const { data: teamData, isLoading } = useQuery({
@@ -182,6 +198,50 @@ export default function OrganizationSettingsPage() {
     },
     onError: (error: Error) => {
       toast.error(`Failed to create organization: ${error.message}`);
+    },
+  });
+
+  // Delete organization mutation
+  const deleteOrgMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/teams/${teamData?.id}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to delete organization");
+      }
+      return res.json();
+    },
+    onSuccess: async () => {
+      toast.success("Organization deleted successfully");
+      await signOut();
+      router.push("/login");
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
+
+  // Delete account mutation
+  const deleteAccountMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch("/api/users/account", {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to delete account");
+      }
+      return res.json();
+    },
+    onSuccess: async () => {
+      toast.success("Account deleted successfully");
+      await signOut();
+      router.push("/login");
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
     },
   });
 
@@ -482,6 +542,164 @@ export default function OrganizationSettingsPage() {
           </Card>
         </div>
       </div>
+
+      {/* Danger Zone */}
+      <Card className="border-red-200/50 bg-white/80 backdrop-blur-sm shadow-sm">
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="w-5 h-5 text-red-500" />
+            <CardTitle className="text-lg font-semibold text-red-600">Danger Zone</CardTitle>
+          </div>
+          <CardDescription className="text-sm text-gray-600">
+            These actions are irreversible. Please proceed with caution.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Delete Organization - Admin only */}
+          {isAdmin && (
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-4 rounded-xl border border-red-200/50 bg-red-50/30">
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-gray-900">Delete Organization</p>
+                <p className="text-sm text-gray-500 mt-1">
+                  Permanently delete this organization, all its data, contacts, messages, and team workspaces. This action cannot be undone.
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                onClick={() => setDeleteOrgDialogOpen(true)}
+                className="border-red-300 text-red-600 hover:bg-red-50 hover:text-red-700 rounded-xl transition-all duration-200 flex-shrink-0"
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Delete Organization
+              </Button>
+            </div>
+          )}
+
+          {/* Delete Account - All users */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-4 rounded-xl border border-red-200/50 bg-red-50/30">
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-gray-900">Delete My Account</p>
+              <p className="text-sm text-gray-500 mt-1">
+                Permanently delete your account and all personal data. You will be logged out and will not be able to recover your account.
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              onClick={() => setDeleteAccountDialogOpen(true)}
+              className="border-red-300 text-red-600 hover:bg-red-50 hover:text-red-700 rounded-xl transition-all duration-200 flex-shrink-0"
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Delete Account
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Delete Organization Confirmation Dialog */}
+      <AlertDialog open={deleteOrgDialogOpen} onOpenChange={(open) => {
+        setDeleteOrgDialogOpen(open);
+        if (!open) setDeleteOrgConfirmation("");
+      }}>
+        <AlertDialogContent className="rounded-2xl border-gray-200/50 bg-white/95 backdrop-blur-xl">
+          <AlertDialogHeader>
+            <div className="w-12 h-12 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center mb-4">
+              <AlertTriangle className="w-6 h-6 text-red-600" />
+            </div>
+            <AlertDialogTitle className="text-lg font-semibold">Delete Organization?</AlertDialogTitle>
+            <AlertDialogDescription className="text-gray-500">
+              This will permanently delete <span className="font-semibold text-gray-700">{teamData?.name}</span> and all associated data including contacts, messages, team chats, workspaces, and tasks. All team members will lose access. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-2 py-2">
+            <Label htmlFor="deleteOrgConfirm" className="text-sm font-medium text-gray-700">
+              Type <span className="font-semibold text-red-600">{teamData?.name}</span> to confirm
+            </Label>
+            <Input
+              id="deleteOrgConfirm"
+              type="text"
+              placeholder={teamData?.name}
+              value={deleteOrgConfirmation}
+              onChange={(e) => setDeleteOrgConfirmation(e.target.value)}
+              className="bg-white border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500/50 transition-all duration-200"
+            />
+          </div>
+          <AlertDialogFooter className="gap-3">
+            <AlertDialogCancel
+              className="rounded-xl border-gray-200/60 bg-white/60 backdrop-blur-sm"
+              onClick={() => setDeleteOrgConfirmation("")}
+            >
+              Cancel
+            </AlertDialogCancel>
+            <Button
+              onClick={() => deleteOrgMutation.mutate()}
+              disabled={deleteOrgConfirmation !== teamData?.name || deleteOrgMutation.isPending}
+              className="rounded-xl bg-red-600 hover:bg-red-700 text-white disabled:opacity-50"
+            >
+              {deleteOrgMutation.isPending ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete Organization"
+              )}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Account Confirmation Dialog */}
+      <AlertDialog open={deleteAccountDialogOpen} onOpenChange={(open) => {
+        setDeleteAccountDialogOpen(open);
+        if (!open) setDeleteAccountConfirmation("");
+      }}>
+        <AlertDialogContent className="rounded-2xl border-gray-200/50 bg-white/95 backdrop-blur-xl">
+          <AlertDialogHeader>
+            <div className="w-12 h-12 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center mb-4">
+              <AlertTriangle className="w-6 h-6 text-red-600" />
+            </div>
+            <AlertDialogTitle className="text-lg font-semibold">Delete Your Account?</AlertDialogTitle>
+            <AlertDialogDescription className="text-gray-500">
+              This will permanently delete your account and all your personal data. You will be signed out and will not be able to recover your account. If you are the only admin, please transfer ownership or delete the organization first.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-2 py-2">
+            <Label htmlFor="deleteAccountConfirm" className="text-sm font-medium text-gray-700">
+              Type <span className="font-semibold text-red-600">DELETE</span> to confirm
+            </Label>
+            <Input
+              id="deleteAccountConfirm"
+              type="text"
+              placeholder="DELETE"
+              value={deleteAccountConfirmation}
+              onChange={(e) => setDeleteAccountConfirmation(e.target.value)}
+              className="bg-white border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500/50 transition-all duration-200"
+            />
+          </div>
+          <AlertDialogFooter className="gap-3">
+            <AlertDialogCancel
+              className="rounded-xl border-gray-200/60 bg-white/60 backdrop-blur-sm"
+              onClick={() => setDeleteAccountConfirmation("")}
+            >
+              Cancel
+            </AlertDialogCancel>
+            <Button
+              onClick={() => deleteAccountMutation.mutate()}
+              disabled={deleteAccountConfirmation !== "DELETE" || deleteAccountMutation.isPending}
+              className="rounded-xl bg-red-600 hover:bg-red-700 text-white disabled:opacity-50"
+            >
+              {deleteAccountMutation.isPending ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete My Account"
+              )}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Invite Member Dialog */}
       <Dialog open={isInviting} onOpenChange={setIsInviting}>

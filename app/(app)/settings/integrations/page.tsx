@@ -3,8 +3,8 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, XCircle, Loader2, RefreshCw, Calendar, ListTodo, ExternalLink, Instagram, Linkedin, Sparkles, Plug, Zap, Shield } from "lucide-react";
-import { useEffect, useState } from "react";
+import { CheckCircle2, XCircle, Loader2, RefreshCw, Calendar, ListTodo, ExternalLink, Instagram, Linkedin, Sparkles, Plug, Zap, Shield, Download } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useSession } from "@/lib/auth-client";
 
 import { useIntegrations } from "@/hooks/useIntegrations";
@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { PlatformCard } from "@/lib/integrations/PlatformCard";
 import { platforms } from "@/lib/config/platforms";
 import { SlackChannelSelector } from "@/components/integrations/SlackChannelSelector";
+import { ClickUpWorkspacePicker } from "@/components/integrations/ClickUpWorkspacePicker";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,9 +25,10 @@ import {
 } from "@/components/ui/alert-dialog";
 
 /** AI Chat integrations (Composio): Google Calendar, ClickUp, Instagram. Status reflects connections made here or in AI Chat. */
-function ComposioIntegrationsSection({ queryClient }: { queryClient: ReturnType<typeof useQueryClient> }) {
+function ComposioIntegrationsSection({ queryClient, onClickUpConnected }: { queryClient: ReturnType<typeof useQueryClient>; onClickUpConnected: () => void }) {
   const { data: session } = useSession();
   const [connectingApp, setConnectingApp] = useState<string | null>(null);
+  const prevClickUpRef = useRef<boolean | undefined>(undefined);
   const { data: composioStatus, isLoading: composioLoading } = useQuery({
     queryKey: ["composio-status", session?.user?.id],
     queryFn: async () => {
@@ -37,6 +39,20 @@ function ComposioIntegrationsSection({ queryClient }: { queryClient: ReturnType<
     enabled: !!session?.user?.id,
     refetchOnWindowFocus: true,
   });
+
+  // Auto-open workspace picker when ClickUp transitions from disconnected → connected
+  useEffect(() => {
+    if (composioLoading || !composioStatus) return;
+    const wasConnected = prevClickUpRef.current;
+    const isNowConnected = !!composioStatus.clickUp;
+    prevClickUpRef.current = isNowConnected;
+
+    // Trigger on transition: was false → now true (just connected)
+    if (wasConnected === false && isNowConnected) {
+      onClickUpConnected();
+    }
+  }, [composioStatus, composioLoading, onClickUpConnected]);
+
   const connectComposioMutation = useMutation({
     mutationFn: async (app: "googlecalendar" | "clickup" | "instagram" | "linkedin") => {
       const res = await fetch(`/api/integrations/composio/connect?app=${app}`);
@@ -113,9 +129,21 @@ function ComposioIntegrationsSection({ queryClient }: { queryClient: ReturnType<
               <h3 className="text-base font-semibold text-gray-900 mb-1">{app.name}</h3>
               <p className="text-sm text-gray-500 mb-4 leading-relaxed">{app.description}</p>
               {isConnected ? (
-                <div className="flex items-center gap-2 text-sm text-emerald-600 bg-emerald-500/10 backdrop-blur-sm rounded-2xl px-4 py-2.5 border border-emerald-500/20">
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span className="font-medium">Ready to use in AI Chat</span>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-sm text-emerald-600 bg-emerald-500/10 backdrop-blur-sm rounded-2xl px-4 py-2.5 border border-emerald-500/20">
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span className="font-medium">Ready to use in AI Chat</span>
+                  </div>
+                  {app.id === "clickup" && (
+                    <Button
+                      variant="outline"
+                      className="w-full rounded-2xl border-indigo-200/60 text-indigo-600 hover:bg-indigo-50/50 h-10"
+                      onClick={onClickUpConnected}
+                    >
+                      <Download className="w-4 h-4 mr-2" />
+                      Import from ClickUp
+                    </Button>
+                  )}
                 </div>
               ) : (
                 <Button
@@ -151,6 +179,11 @@ export default function IntegrationsPage() {
   const [slackIntegrationId, setSlackIntegrationId] = useState<string | null>(null);
   const [disconnectDialogOpen, setDisconnectDialogOpen] = useState(false);
   const [disconnectAccountId, setDisconnectAccountId] = useState<string | null>(null);
+  const [clickUpPickerOpen, setClickUpPickerOpen] = useState(false);
+
+  const handleClickUpConnected = useCallback(() => {
+    setClickUpPickerOpen(true);
+  }, []);
 
   const {
     isLoading,
@@ -341,7 +374,7 @@ export default function IntegrationsPage() {
         )}
 
         {/* AI Chat integrations */}
-        <ComposioIntegrationsSection queryClient={queryClient} />
+        <ComposioIntegrationsSection queryClient={queryClient} onClickUpConnected={handleClickUpConnected} />
 
         {/* Communication Platforms Section */}
         <div className="space-y-5">
@@ -417,6 +450,12 @@ export default function IntegrationsPage() {
             integrationId={slackIntegrationId}
           />
         )}
+
+        {/* ClickUp Workspace Picker Dialog */}
+        <ClickUpWorkspacePicker
+          open={clickUpPickerOpen}
+          onClose={() => setClickUpPickerOpen(false)}
+        />
 
         {/* Disconnect Confirmation Dialog */}
         <AlertDialog open={disconnectDialogOpen} onOpenChange={setDisconnectDialogOpen}>

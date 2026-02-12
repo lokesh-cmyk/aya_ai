@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server';
 import { cookies } from 'next/headers';
 import { auth, getSessionCookie } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { streamText } from 'ai';
+import { streamText, stepCountIs } from 'ai';
 import { anthropic } from '@ai-sdk/anthropic';
 import {
   searchMemories,
@@ -10,7 +10,7 @@ import {
   isMem0Configured,
   type Memory,
 } from '@/lib/mem0';
-import { COMPOSIO_APPS, getIntegrationsCallbackUrl } from '@/lib/composio-tools';
+import { COMPOSIO_APPS, getComposio, getComposioSessionTools, getIntegrationsCallbackUrl } from '@/lib/composio-tools';
 
 export type ConnectAction = { connectLink: string; connectAppName: string };
 
@@ -102,16 +102,46 @@ async function getConnectedIntegrations(userId: string, teamId?: string | null):
   // Map DB integration names to our integration keys
   const connectedNames = dbIntegrations.map(i => i.name.toLowerCase());
 
+  // Check Composio connected accounts for OAuth-based integrations
+  const composioSlugs = new Set<string>();
+  try {
+    const apiKey = process.env.NEXT_PUBLIC_COMPOSIO_API_KEY;
+    if (apiKey) {
+      const composio = getComposio();
+      const list = await composio.connectedAccounts.list({
+        userIds: [userId],
+        statuses: ["ACTIVE"],
+        toolkitSlugs: [
+          COMPOSIO_APPS.googlecalendar.slug,
+          COMPOSIO_APPS.clickup.slug,
+          COMPOSIO_APPS.instagram.slug,
+          COMPOSIO_APPS.linkedin.slug,
+        ],
+      });
+      const items = (list as { items?: Array<{ toolkit?: { slug?: string }; toolkitSlug?: string }> }).items ?? [];
+      for (const item of items) {
+        const slug = (item.toolkit?.slug ?? item.toolkitSlug ?? "").toLowerCase();
+        if (slug) composioSlugs.add(slug);
+      }
+    }
+  } catch (e) {
+    console.warn('[ai-chat/stream] Failed to check Composio status:', e);
+  }
+
   // Check each integration
   for (const key of Object.keys(AVAILABLE_INTEGRATIONS)) {
     const info = AVAILABLE_INTEGRATIONS[key];
-    // Check if connected via DB integrations or if it's a Composio app that might be connected
-    const isConnected = connectedNames.some(n =>
+    // Check if connected via DB integrations
+    const isConnectedDB = connectedNames.some(n =>
       n === key.toLowerCase() ||
       n === info.name.toLowerCase() ||
       n.includes(key.toLowerCase())
     );
-    integrationStatus[key] = isConnected;
+    // Check if connected via Composio
+    const isConnectedComposio = info.composioApp
+      ? composioSlugs.has(COMPOSIO_APPS[info.composioApp].slug.toLowerCase())
+      : false;
+    integrationStatus[key] = isConnectedDB || isConnectedComposio;
   }
 
   // Meeting bot is "connected" if user has meetingBotSettings or any meetings
@@ -348,6 +378,16 @@ export async function POST(request: NextRequest) {
 
     const claudeModel = modelMap[model] || modelMap['sonnet-4.5'];
 
+    // Load Composio tools for connected integrations (ClickUp, Google Calendar, etc.)
+    let composioTools: import('ai').ToolSet = {};
+    try {
+      const session_tools = await getComposioSessionTools(session.user.id);
+      composioTools = session_tools.tools;
+    } catch (e) {
+      console.warn('[ai-chat/stream] Failed to load Composio tools:', e);
+      // Continue without tools - graceful degradation
+    }
+
     // Get connected integrations
     const integrations = await getConnectedIntegrations(session.user.id, user?.teamId);
 
@@ -388,6 +428,8 @@ export async function POST(request: NextRequest) {
             model: anthropic(claudeModel),
             system: systemPrompt,
             messages,
+            tools: Object.keys(composioTools).length > 0 ? composioTools : undefined,
+            stopWhen: Object.keys(composioTools).length > 0 ? stepCountIs(5) : stepCountIs(1),
             maxOutputTokens: isThinkingEnabled ? 4096 : 2048,
           });
 
@@ -542,9 +584,16 @@ The Unified Box platform supports the following integrations:
 
   prompt += `
 
+## Using Integration Tools
+
+When a user asks about a **connected** integration (like ClickUp, Google Calendar, Instagram, or LinkedIn), you have tool access via Composio:
+- Use COMPOSIO_SEARCH_TOOLS to discover available tools for a connected integration
+- Use the discovered tools to take actions (view tasks, create events, etc.)
+- If a tool call fails, let the user know and suggest they reconnect the integration
+
 ## Response Guidelines
 
-1. When a user asks about a **connected** integration, provide helpful information using the available data.
+1. When a user asks about a **connected** integration, USE YOUR TOOLS to fetch real data and take actions. Do not just describe capabilities - actually use the tools.
 
 2. When a user asks about a **disconnected** integration, respond helpfully:
    - Acknowledge what they're trying to do
