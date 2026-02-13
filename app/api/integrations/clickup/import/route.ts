@@ -14,6 +14,9 @@ import {
   type ClickUpStatus,
 } from "@/lib/integrations/clickup";
 
+// Allow up to 5 minutes for large workspace imports (serverless timeout)
+export const maxDuration = 300;
+
 const importSchema = z.object({
   workspaceId: z.string().min(1, "Workspace ID is required"),
 });
@@ -58,7 +61,7 @@ export async function POST(request: NextRequest) {
     const client = new ClickUpClient(connectionId);
 
     // -----------------------------------------------------------------------
-    // Phase 1: Fetch all ClickUp data
+    // Phase 1: Fetch all ClickUp data (parallelized per space)
     // -----------------------------------------------------------------------
     const clickUpSpaces = await client.getSpaces(workspaceId);
 
@@ -69,41 +72,78 @@ export async function POST(request: NextRequest) {
     > = [];
     const allTasks: Array<ClickUpTask & { _listId: string }> = [];
 
-    for (const space of clickUpSpaces) {
-      // Get folders in this space
-      const folders = await client.getFolders(space.id);
-      for (const folder of folders) {
-        allFolders.push({ ...folder, _spaceId: space.id });
+    // Fetch data for all spaces in parallel
+    await Promise.all(
+      clickUpSpaces.map(async (space) => {
+        try {
+          // Fetch folders and folderless lists for this space in parallel
+          const [folders, folderlessLists] = await Promise.all([
+            client.getFolders(space.id).catch((err) => {
+              console.error(`[clickup/import] Failed to fetch folders for space "${space.name}":`, err);
+              return [] as ClickUpFolder[];
+            }),
+            client.getFolderlessLists(space.id).catch((err) => {
+              console.error(`[clickup/import] Failed to fetch folderless lists for space "${space.name}":`, err);
+              return [] as ClickUpList[];
+            }),
+          ]);
 
-        // Get lists in this folder
-        const lists = await client.getLists(folder.id);
-        for (const list of lists) {
-          allLists.push({ ...list, _spaceId: space.id, _folderId: folder.id });
+          // Process folders and their lists in parallel
+          await Promise.all(
+            folders.map(async (folder) => {
+              allFolders.push({ ...folder, _spaceId: space.id });
 
-          // Get tasks in this list
-          const tasks = await client.getTasks(list.id);
-          for (const task of tasks) {
-            allTasks.push({ ...task, _listId: list.id });
-          }
+              const lists = await client.getLists(folder.id).catch((err) => {
+                console.error(`[clickup/import] Failed to fetch lists for folder "${folder.name}":`, err);
+                return [] as ClickUpList[];
+              });
+
+              // Fetch tasks for all lists in this folder in parallel
+              await Promise.all(
+                lists.map(async (list) => {
+                  allLists.push({ ...list, _spaceId: space.id, _folderId: folder.id });
+
+                  const tasks = await client.getTasks(list.id).catch((err) => {
+                    console.error(`[clickup/import] Failed to fetch tasks for list "${list.name}":`, err);
+                    return [] as ClickUpTask[];
+                  });
+                  for (const task of tasks) {
+                    allTasks.push({ ...task, _listId: list.id });
+                  }
+                })
+              );
+            })
+          );
+
+          // Process folderless lists and their tasks in parallel
+          await Promise.all(
+            folderlessLists.map(async (list) => {
+              allLists.push({ ...list, _spaceId: space.id, _folderId: null });
+
+              const tasks = await client.getTasks(list.id).catch((err) => {
+                console.error(`[clickup/import] Failed to fetch tasks for list "${list.name}":`, err);
+                return [] as ClickUpTask[];
+              });
+              for (const task of tasks) {
+                allTasks.push({ ...task, _listId: list.id });
+              }
+            })
+          );
+        } catch (err) {
+          console.error(`[clickup/import] Failed to process space "${space.name}":`, err);
         }
-      }
+      })
+    );
 
-      // Get folderless lists in this space
-      const folderlessLists = await client.getFolderlessLists(space.id);
-      for (const list of folderlessLists) {
-        allLists.push({ ...list, _spaceId: space.id, _folderId: null });
-
-        const tasks = await client.getTasks(list.id);
-        for (const task of tasks) {
-          allTasks.push({ ...task, _listId: list.id });
-        }
-      }
-    }
+    console.log(
+      `[clickup/import] Fetched ${clickUpSpaces.length} spaces, ${allFolders.length} folders, ${allLists.length} lists, ${allTasks.length} tasks`
+    );
 
     // -----------------------------------------------------------------------
     // Phase 2: Create CRM records
     // -----------------------------------------------------------------------
     const summary = { spaces: 0, folders: 0, lists: 0, statuses: 0, tasks: 0 };
+    const errors: string[] = [];
 
     // Maps from ClickUp ID → CRM ID
     const spaceMap = new Map<string, string>();
@@ -114,13 +154,18 @@ export async function POST(request: NextRequest) {
 
     // --- Spaces ---
     for (const cuSpace of clickUpSpaces) {
-      const crmSpace = await findOrCreateSpace(
-        cuSpace,
-        user.teamId,
-        session.user.id
-      );
-      spaceMap.set(cuSpace.id, crmSpace.id);
-      summary.spaces++;
+      try {
+        const crmSpace = await findOrCreateSpace(
+          cuSpace,
+          user.teamId,
+          session.user.id
+        );
+        spaceMap.set(cuSpace.id, crmSpace.id);
+        summary.spaces++;
+      } catch (err) {
+        console.error(`[clickup/import] Failed to create space "${cuSpace.name}":`, err);
+        errors.push(`Space "${cuSpace.name}"`);
+      }
     }
 
     // --- Folders ---
@@ -128,12 +173,14 @@ export async function POST(request: NextRequest) {
       const crmSpaceId = spaceMap.get(cuFolder._spaceId);
       if (!crmSpaceId) continue;
 
-      const crmFolder = await findOrCreateFolder(
-        cuFolder,
-        crmSpaceId
-      );
-      folderMap.set(cuFolder.id, crmFolder.id);
-      summary.folders++;
+      try {
+        const crmFolder = await findOrCreateFolder(cuFolder, crmSpaceId);
+        folderMap.set(cuFolder.id, crmFolder.id);
+        summary.folders++;
+      } catch (err) {
+        console.error(`[clickup/import] Failed to create folder "${cuFolder.name}":`, err);
+        errors.push(`Folder "${cuFolder.name}"`);
+      }
     }
 
     // --- Lists + Status Columns ---
@@ -144,46 +191,58 @@ export async function POST(request: NextRequest) {
         ? folderMap.get(cuList._folderId) ?? null
         : null;
 
-      const crmList = await findOrCreateTaskList(
-        cuList,
-        crmSpaceId,
-        crmFolderId
-      );
-      listMap.set(cuList.id, crmList.id);
-      summary.lists++;
+      try {
+        const crmList = await findOrCreateTaskList(
+          cuList,
+          crmSpaceId,
+          crmFolderId
+        );
+        listMap.set(cuList.id, crmList.id);
+        summary.lists++;
 
-      // Create status columns from ClickUp list statuses
-      const statuses = cuList.statuses ?? [];
-      console.log(`[clickup/import] List "${cuList.name}" has ${statuses.length} statuses:`, statuses.map(s => s.status));
+        // Create status columns from ClickUp list statuses
+        const statuses = cuList.statuses ?? [];
 
-      if (statuses.length > 0) {
-        for (let i = 0; i < statuses.length; i++) {
-          const cuStatus = statuses[i];
-          const crmStatus = await findOrCreateStatusColumn(
-            cuStatus,
-            crmList.id,
-            i
-          );
-          statusMap.set(`${crmList.id}:${cuStatus.status.toLowerCase()}`, crmStatus.id);
-          summary.statuses++;
+        if (statuses.length > 0) {
+          for (let i = 0; i < statuses.length; i++) {
+            const cuStatus = statuses[i];
+            try {
+              const crmStatus = await findOrCreateStatusColumn(
+                cuStatus,
+                crmList.id,
+                i
+              );
+              statusMap.set(`${crmList.id}:${cuStatus.status.toLowerCase()}`, crmStatus.id);
+              summary.statuses++;
+            } catch (err) {
+              console.error(`[clickup/import] Failed to create status "${cuStatus.status}":`, err);
+            }
+          }
+        } else {
+          // Fallback: create default status columns so the kanban board isn't blank
+          const defaultStatuses = [
+            { status: "To Do", color: "#d3d3d3", type: "open", orderindex: 0 },
+            { status: "In Progress", color: "#4194f6", type: "custom", orderindex: 1 },
+            { status: "Done", color: "#6bc950", type: "closed", orderindex: 2 },
+          ];
+          for (let i = 0; i < defaultStatuses.length; i++) {
+            const ds = defaultStatuses[i];
+            try {
+              const crmStatus = await findOrCreateStatusColumn(
+                ds as ClickUpStatus,
+                crmList.id,
+                i
+              );
+              statusMap.set(`${crmList.id}:${ds.status.toLowerCase()}`, crmStatus.id);
+              summary.statuses++;
+            } catch (err) {
+              console.error(`[clickup/import] Failed to create default status "${ds.status}":`, err);
+            }
+          }
         }
-      } else {
-        // Fallback: create default status columns so the kanban board isn't blank
-        const defaultStatuses = [
-          { status: "To Do", color: "#d3d3d3", type: "open", orderindex: 0 },
-          { status: "In Progress", color: "#4194f6", type: "custom", orderindex: 1 },
-          { status: "Done", color: "#6bc950", type: "closed", orderindex: 2 },
-        ];
-        for (let i = 0; i < defaultStatuses.length; i++) {
-          const ds = defaultStatuses[i];
-          const crmStatus = await findOrCreateStatusColumn(
-            ds as ClickUpStatus,
-            crmList.id,
-            i
-          );
-          statusMap.set(`${crmList.id}:${ds.status.toLowerCase()}`, crmStatus.id);
-          summary.statuses++;
-        }
+      } catch (err) {
+        console.error(`[clickup/import] Failed to create list "${cuList.name}":`, err);
+        errors.push(`List "${cuList.name}"`);
       }
     }
 
@@ -192,18 +251,27 @@ export async function POST(request: NextRequest) {
       const crmListId = listMap.get(cuTask._listId);
       if (!crmListId) continue;
 
-      // Resolve status
-      const statusKey = `${crmListId}:${cuTask.status.status.toLowerCase()}`;
-      const statusId = statusMap.get(statusKey) ?? null;
+      try {
+        // Safely resolve status (guard against null/missing status object)
+        const taskStatusName = cuTask.status?.status;
+        const statusKey = taskStatusName
+          ? `${crmListId}:${taskStatusName.toLowerCase()}`
+          : null;
+        const statusId = statusKey ? statusMap.get(statusKey) ?? null : null;
 
-      await findOrCreateTask(cuTask, crmListId, statusId, session.user.id);
-      summary.tasks++;
+        await findOrCreateTask(cuTask, crmListId, statusId, session.user.id);
+        summary.tasks++;
+      } catch (err) {
+        console.error(`[clickup/import] Failed to create task "${cuTask.name}":`, err);
+        errors.push(`Task "${cuTask.name}"`);
+      }
     }
 
     return NextResponse.json({
       success: true,
       summary,
       message: `Imported ${summary.spaces} spaces, ${summary.folders} folders, ${summary.lists} lists, ${summary.statuses} statuses, and ${summary.tasks} tasks from ClickUp.`,
+      ...(errors.length > 0 && { warnings: `${errors.length} items had errors and were skipped.` }),
     });
   } catch (error) {
     console.error("[clickup/import]", error);
@@ -388,8 +456,20 @@ async function findOrCreateTask(
 
   const tags = cuTask.tags?.map((t) => t.name) ?? [];
   const priority = mapClickUpPriority(cuTask.priority);
-  const dueDate = cuTask.due_date && cuTask.due_date !== "" ? new Date(Number(cuTask.due_date)) : null;
   const description = cuTask.description || cuTask.text_content || null;
+
+  // Safely parse due_date - ClickUp sends epoch ms as a string
+  let dueDate: Date | null = null;
+  if (cuTask.due_date && cuTask.due_date !== "") {
+    const epoch = Number(cuTask.due_date);
+    if (!isNaN(epoch) && epoch > 0) {
+      dueDate = new Date(epoch);
+      // Guard against Invalid Date
+      if (isNaN(dueDate.getTime())) {
+        dueDate = null;
+      }
+    }
+  }
 
   if (existing) {
     return prisma.task.update({
