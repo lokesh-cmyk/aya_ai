@@ -455,12 +455,25 @@ export async function POST(request: NextRequest) {
 
               case 'tool-call': {
                 const displayName = getToolDisplayName(part.toolName);
+                // Send a short description of what args were passed
+                let argsPreview = '';
+                try {
+                  const args = (part as any).args || (part as any).input;
+                  if (args && typeof args === 'object') {
+                    const entries = Object.entries(args).slice(0, 3);
+                    argsPreview = entries
+                      .map(([k, v]) => `${k}: ${typeof v === 'string' ? v.slice(0, 60) : JSON.stringify(v)}`)
+                      .join(', ');
+                    if (argsPreview.length > 150) argsPreview = argsPreview.slice(0, 147) + '...';
+                  }
+                } catch {}
                 controller.enqueue(
                   encoder.encode(`data: ${JSON.stringify({
                     type: 'tool_call_start',
                     toolCallId: part.toolCallId,
                     toolName: part.toolName,
                     displayName,
+                    args: argsPreview || undefined,
                   })}\n\n`)
                 );
                 break;
@@ -468,7 +481,17 @@ export async function POST(request: NextRequest) {
 
               case 'tool-result': {
                 const displayName = getToolDisplayName(part.toolName);
-                const summary = summarizeToolResult(part.toolName, (part as any).output);
+                const rawOutput = (part as any).output;
+                const summary = summarizeToolResult(part.toolName, rawOutput);
+
+                // Build a short result preview for the expanded card
+                let resultPreview = '';
+                try {
+                  if (rawOutput != null) {
+                    const outputStr = typeof rawOutput === 'string' ? rawOutput : JSON.stringify(rawOutput, null, 2);
+                    resultPreview = outputStr.length > 500 ? outputStr.slice(0, 497) + '...' : outputStr;
+                  }
+                } catch {}
 
                 toolCallsMetadata.push({
                   toolCallId: part.toolCallId,
@@ -486,6 +509,7 @@ export async function POST(request: NextRequest) {
                     displayName,
                     status: 'success',
                     summary,
+                    resultPreview: resultPreview || undefined,
                   })}\n\n`)
                 );
                 break;
@@ -498,7 +522,32 @@ export async function POST(request: NextRequest) {
 
           // Parse connect actions from the response for agentic UI
           const connectActions = parseConnectActions(fullResponse);
-          const cleanedResponse = cleanResponseText(fullResponse);
+          let cleanedResponse = cleanResponseText(fullResponse);
+
+          // If the AI used tools but produced no text, build a fallback response
+          if (!cleanedResponse && toolCallsMetadata.length > 0) {
+            const successfulTools = toolCallsMetadata.filter(tc => tc.status === 'success');
+            const failedTools = toolCallsMetadata.filter(tc => tc.status === 'error');
+
+            let fallback = 'I completed the following operations:\n\n';
+            for (const tc of successfulTools) {
+              fallback += `- **${tc.displayName}**: ${tc.summary}\n`;
+            }
+            if (failedTools.length > 0) {
+              fallback += '\nSome operations failed:\n';
+              for (const tc of failedTools) {
+                fallback += `- **${tc.displayName}**: ${tc.summary}\n`;
+              }
+            }
+            fallback += '\nPlease try asking again if you need more details — I may have run into a tool execution limit.';
+
+            cleanedResponse = fallback;
+
+            // Stream the fallback text to the client so they see it
+            controller.enqueue(
+              encoder.encode(`data: ${JSON.stringify({ type: 'text', content: cleanedResponse })}\n\n`)
+            );
+          }
 
           // Build metadata with connect actions and tool calls
           const messageMetadata: Record<string, any> = {
@@ -651,9 +700,17 @@ When a user asks about a **connected** integration (like ClickUp, Google Calenda
 - Use the discovered tools to take actions (view tasks, create events, etc.)
 - If a tool call fails, let the user know and suggest they reconnect the integration
 
-## Tool Execution Behavior
+## Tool Execution Behavior — EFFICIENCY IS CRITICAL
 
-CRITICAL: When you need to use tools, JUST USE THEM SILENTLY. Do NOT narrate what you are about to do.
+You have a STRICT LIMIT of tool call rounds. Be extremely efficient:
+
+1. **Search for tools ONCE per integration** — never call COMPOSIO_SEARCH_TOOLS for the same integration twice
+2. **Batch operations** — if you need multiple pieces of data, call all the tools you need in the SAME step (parallel tool calls), don't call them one at a time
+3. **Minimize steps** — aim for 2-3 tool rounds maximum: (1) search for tools, (2) execute the actions, (3) present results
+4. **ALWAYS produce a text response** — after your tool calls finish, you MUST write a text summary/answer. Never end with just tool calls and no text.
+5. **If a tool call fails, move on** — don't retry the same call. Use what data you have and tell the user what didn't work.
+
+CRITICAL: JUST USE TOOLS SILENTLY. Do NOT narrate what you are about to do.
 
 BAD examples (NEVER do this):
 - "I'll fetch your tasks from ClickUp to give you an overview."
@@ -669,9 +726,10 @@ GOOD examples (DO this):
 Rules:
 - Do NOT say "Let me fetch...", "I'll look up...", "Now let me process...", "First, let me..."
 - Call tools directly without announcing them
-- If multiple tool calls are needed, make them all without narrating each step
+- If multiple tool calls are needed, make them all in ONE round without narrating each step
 - Only speak to the user AFTER you have the data to present
 - If a tool call fails, briefly mention it and suggest reconnecting
+- NEVER search for the same tools twice — remember what tools are available after the first search
 
 ## Rich UI Formatting
 

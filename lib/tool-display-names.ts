@@ -14,6 +14,10 @@ const TOOL_DISPLAY_NAMES: Record<string, string> = {
   // Composio meta tools
   COMPOSIO_SEARCH_TOOLS: "Search Available Tools",
   COMPOSIO_MANAGE_CONNECTIONS: "Manage Connections",
+  COMPOSIO_GET_TOOL_SCHEMAS: "Get Tool Schemas",
+  COMPOSIO_MULTI_EXECUTE_TOOL: "Execute Actions",
+  COMPOSIO_EXECUTE_TOOL: "Execute Action",
+  COMPOSIO_REMOTE_WORKBENCH: "Remote Workbench",
 
   // ClickUp
   CLICKUP_GET_TASKS: "Get Tasks",

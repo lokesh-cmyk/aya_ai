@@ -15,6 +15,8 @@ interface ToolCallData {
   displayName: string;
   status: 'calling' | 'success' | 'error';
   summary?: string;
+  args?: string;
+  resultPreview?: string;
 }
 
 interface Message {
@@ -83,6 +85,8 @@ export const MessageBubble = memo(function MessageBubble({
                 displayName={tc.displayName}
                 status={tc.status}
                 summary={tc.summary}
+                args={tc.args}
+                resultPreview={tc.resultPreview}
               />
             ))}
           </div>

@@ -6,6 +6,8 @@ export interface ToolCall {
   displayName: string;
   status: 'calling' | 'success' | 'error';
   summary?: string;
+  args?: string;
+  resultPreview?: string;
 }
 
 interface StreamParams {
@@ -163,6 +165,7 @@ export function useStreamingChat(): UseStreamingChatReturn {
                   toolName: data.toolName,
                   displayName: data.displayName || data.toolName,
                   status: 'calling',
+                  args: data.args,
                 },
               ]);
             } else if (data.type === 'tool_call_result') {
@@ -174,6 +177,7 @@ export function useStreamingChat(): UseStreamingChatReturn {
                         status: data.status === 'error' ? 'error' as const : 'success' as const,
                         summary: data.summary,
                         displayName: data.displayName || tc.displayName,
+                        resultPreview: data.resultPreview,
                       }
                     : tc
                 )
