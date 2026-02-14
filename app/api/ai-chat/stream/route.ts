@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server';
 import { cookies } from 'next/headers';
 import { auth, getSessionCookie } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { streamText, stepCountIs } from 'ai';
+import { streamText } from 'ai';
 import { anthropic } from '@ai-sdk/anthropic';
 import {
   searchMemories,
@@ -11,6 +11,7 @@ import {
   type Memory,
 } from '@/lib/mem0';
 import { COMPOSIO_APPS, getComposio, getComposioSessionTools, getIntegrationsCallbackUrl } from '@/lib/composio-tools';
+import { getToolDisplayName, summarizeToolResult } from '@/lib/tool-display-names';
 
 export type ConnectAction = { connectLink: string; connectAppName: string };
 
@@ -420,33 +421,89 @@ export async function POST(request: NextRequest) {
     // Create streaming response using ReadableStream
     const encoder = new TextEncoder();
     let fullResponse = '';
+    const toolCallsMetadata: Array<{
+      toolCallId: string;
+      toolName: string;
+      displayName: string;
+      status: 'success' | 'error';
+      summary: string;
+    }> = [];
 
     const stream = new ReadableStream({
       async start(controller) {
         try {
-          const result = await streamText({
+          const hasTools = Object.keys(composioTools).length > 0;
+          const result = streamText({
             model: anthropic(claudeModel),
             system: systemPrompt,
             messages,
-            tools: Object.keys(composioTools).length > 0 ? composioTools : undefined,
-            stopWhen: Object.keys(composioTools).length > 0 ? stepCountIs(5) : stepCountIs(1),
-            maxOutputTokens: isThinkingEnabled ? 4096 : 2048,
+            tools: hasTools ? composioTools : undefined,
+            maxSteps: hasTools ? 10 : 1,
+            maxTokens: isThinkingEnabled ? 16000 : 8000,
           });
 
-          // Stream the text
-          for await (const textPart of result.textStream) {
-            fullResponse += textPart;
-            // Send as SSE format
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: textPart })}\n\n`));
+          // Use fullStream to get ALL events including tool calls
+          for await (const part of result.fullStream) {
+            switch (part.type) {
+              case 'text': {
+                fullResponse += part.text;
+                controller.enqueue(
+                  encoder.encode(`data: ${JSON.stringify({ type: 'text', content: part.text })}\n\n`)
+                );
+                break;
+              }
+
+              case 'tool-call': {
+                const displayName = getToolDisplayName(part.toolName);
+                controller.enqueue(
+                  encoder.encode(`data: ${JSON.stringify({
+                    type: 'tool_call_start',
+                    toolCallId: part.toolCallId,
+                    toolName: part.toolName,
+                    displayName,
+                  })}\n\n`)
+                );
+                break;
+              }
+
+              case 'tool-result': {
+                const displayName = getToolDisplayName(part.toolName);
+                const summary = summarizeToolResult(part.toolName, part.result);
+
+                toolCallsMetadata.push({
+                  toolCallId: part.toolCallId,
+                  toolName: part.toolName,
+                  displayName,
+                  status: 'success',
+                  summary,
+                });
+
+                controller.enqueue(
+                  encoder.encode(`data: ${JSON.stringify({
+                    type: 'tool_call_result',
+                    toolCallId: part.toolCallId,
+                    toolName: part.toolName,
+                    displayName,
+                    status: 'success',
+                    summary,
+                  })}\n\n`)
+                );
+                break;
+              }
+
+              default:
+                break;
+            }
           }
 
           // Parse connect actions from the response for agentic UI
           const connectActions = parseConnectActions(fullResponse);
           const cleanedResponse = cleanResponseText(fullResponse);
 
-          // Build metadata with connect actions
+          // Build metadata with connect actions and tool calls
           const messageMetadata: Record<string, any> = {
             thinking: isThinkingEnabled ? 'Extended thinking enabled' : undefined,
+            toolCalls: toolCallsMetadata.length > 0 ? toolCallsMetadata : undefined,
           };
           if (connectActions.length > 0) {
             messageMetadata.connectActions = connectActions;
@@ -485,11 +542,14 @@ export async function POST(request: NextRequest) {
 
           // Send connect actions to client for agentic UI (before done signal)
           if (connectActions.length > 0) {
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ connectActions })}\n\n`));
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'connect_action', connectActions })}\n\n`));
           }
 
-          // Send done signal
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ done: true })}\n\n`));
+          // Send done signal with tool call metadata for persistence
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+            done: true,
+            toolCalls: toolCallsMetadata.length > 0 ? toolCallsMetadata : undefined,
+          })}\n\n`));
           controller.close();
         } catch (error: any) {
           console.error('[ai-chat/stream] Stream error:', error);
@@ -591,6 +651,66 @@ When a user asks about a **connected** integration (like ClickUp, Google Calenda
 - Use the discovered tools to take actions (view tasks, create events, etc.)
 - If a tool call fails, let the user know and suggest they reconnect the integration
 
+## Tool Execution Behavior
+
+CRITICAL: When you need to use tools, JUST USE THEM SILENTLY. Do NOT narrate what you are about to do.
+
+BAD examples (NEVER do this):
+- "I'll fetch your tasks from ClickUp to give you an overview."
+- "Let me look up your calendar events."
+- "Now let me process this data to create a summary."
+- "First, I'll search for the available tools..."
+
+GOOD examples (DO this):
+- [silently call tools, then present the results directly]
+- "Here are your active tasks across 3 projects: ..."
+- "You have 5 upcoming events this week: ..."
+
+Rules:
+- Do NOT say "Let me fetch...", "I'll look up...", "Now let me process...", "First, let me..."
+- Call tools directly without announcing them
+- If multiple tool calls are needed, make them all without narrating each step
+- Only speak to the user AFTER you have the data to present
+- If a tool call fails, briefly mention it and suggest reconnecting
+
+## Rich UI Formatting
+
+When presenting structured data (lists of tasks, events, emails, meetings, posts), use component blocks for rich rendering in the chat UI. Wrap structured data in this format:
+
+\`\`\`
+:::component{type="TYPE_NAME"}
+JSON_ARRAY_OR_OBJECT_HERE
+:::
+\`\`\`
+
+Available component types and their JSON schemas:
+
+### task_table
+Use when presenting 2+ tasks. Each object in the JSON array:
+{"name": "string", "status": "string", "priority": "string (HIGH/MEDIUM/LOW/URGENT/NONE)", "dueDate": "ISO date string or null", "assignee": "string or null", "project": "string or null"}
+
+### calendar_events
+Use when presenting 2+ calendar events. Each object:
+{"title": "string", "start": "ISO datetime", "end": "ISO datetime", "location": "string or null", "attendees": ["string array"], "description": "string or null"}
+
+### email_summary
+Use when presenting 2+ emails. Each object:
+{"from": "string", "subject": "string", "snippet": "string (first ~100 chars)", "date": "ISO datetime", "isUrgent": true/false}
+
+### meeting_summary
+Use for a meeting with insights. Object:
+{"title": "string", "date": "ISO datetime", "duration": "number (minutes) or null", "participants": ["string array"], "summary": "string", "actionItems": [{"task": "string", "owner": "string or null"}], "keyTopics": ["string array"]}
+
+### social_post
+Use when presenting social media posts. Each object:
+{"platform": "instagram|linkedin", "content": "string", "date": "ISO datetime", "likes": "number or null", "comments": "number or null"}
+
+Rules for component blocks:
+- Always include a brief text summary before or after the component block for context
+- The JSON inside must be valid JSON (array for multiple items, object for single items)
+- Do NOT wrap the same data as both text AND component — pick one
+- Use component blocks when you have 2+ structured items to display
+
 ## Response Guidelines
 
 1. When a user asks about a **connected** integration, USE YOUR TOOLS to fetch real data and take actions. Do not just describe capabilities - actually use the tools.
@@ -614,6 +734,8 @@ When a user asks about a **connected** integration (like ClickUp, Google Calenda
 3. Be concise and helpful. Use your memories about this user to personalize responses naturally.
 
 4. For meeting-related questions, use the provided meeting context to summarize, find action items, or help with follow-ups.
+
+5. Present data using component blocks when you have structured results. Always add a brief text insight before or after the component.
 `;
 
   // Add memories section if available

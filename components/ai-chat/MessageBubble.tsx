@@ -2,11 +2,20 @@
 
 import React, { memo } from 'react';
 import { Sparkles, Calendar, ListTodo, ExternalLink, Instagram, Linkedin } from 'lucide-react';
-import ReactMarkdown from 'react-markdown';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { MessageActions } from './MessageActions';
 import { StreamingMessage } from './StreamingMessage';
+import { ToolCallCard } from './ToolCallCard';
+import { GenerativeUIRenderer } from './GenerativeUIRenderer';
+
+interface ToolCallData {
+  toolCallId: string;
+  toolName: string;
+  displayName: string;
+  status: 'calling' | 'success' | 'error';
+  summary?: string;
+}
 
 interface Message {
   id: string;
@@ -21,6 +30,7 @@ interface MessageBubbleProps {
   userInitial: string;
   isStreaming?: boolean;
   streamedContent?: string;
+  toolCalls?: ToolCallData[];
   onRegenerate?: () => void;
 }
 
@@ -29,6 +39,7 @@ export const MessageBubble = memo(function MessageBubble({
   userInitial,
   isStreaming = false,
   streamedContent,
+  toolCalls,
   onRegenerate,
 }: MessageBubbleProps) {
   const isUser = message.role === 'user';
@@ -40,6 +51,11 @@ export const MessageBubble = memo(function MessageBubble({
     : message.metadata?.connectLink
       ? [{ connectLink: String(message.metadata.connectLink), connectAppName: String(message.metadata?.connectAppName ?? "App") }]
       : [];
+
+  // Tool calls: use live streaming tool calls if available, otherwise from saved metadata
+  const displayToolCalls: ToolCallData[] = toolCalls && toolCalls.length > 0
+    ? toolCalls
+    : (message.metadata?.toolCalls || []);
 
   return (
     <div
@@ -57,6 +73,21 @@ export const MessageBubble = memo(function MessageBubble({
 
       {/* Message Content */}
       <div className="flex flex-col gap-1 max-w-[85%] sm:max-w-[80%]">
+        {/* Tool Call Cards — rendered above the message bubble */}
+        {!isUser && displayToolCalls.length > 0 && (
+          <div className="space-y-1.5 mb-1">
+            {displayToolCalls.map((tc) => (
+              <ToolCallCard
+                key={tc.toolCallId}
+                toolName={tc.toolName}
+                displayName={tc.displayName}
+                status={tc.status}
+                summary={tc.summary}
+              />
+            ))}
+          </div>
+        )}
+
         <div
           className={cn(
             'rounded-2xl px-4 py-3 shadow-sm',
@@ -74,9 +105,7 @@ export const MessageBubble = memo(function MessageBubble({
               {isStreaming ? (
                 <StreamingMessage content={displayContent} isStreaming={isStreaming} />
               ) : (
-                <div className="prose prose-sm max-w-none text-gray-800">
-                  <ReactMarkdown>{displayContent}</ReactMarkdown>
-                </div>
+                <GenerativeUIRenderer content={displayContent} />
               )}
 
               {/* Agentic UI: Connect apps */}

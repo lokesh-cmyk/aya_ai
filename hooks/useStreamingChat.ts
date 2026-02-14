@@ -1,5 +1,13 @@
 import { useState, useCallback, useRef } from 'react';
 
+export interface ToolCall {
+  toolCallId: string;
+  toolName: string;
+  displayName: string;
+  status: 'calling' | 'success' | 'error';
+  summary?: string;
+}
+
 interface StreamParams {
   conversationId: string;
   message: string;
@@ -21,6 +29,7 @@ interface UseStreamingChatReturn {
   error: Error | null;
   userMessageId: string | null;
   connectActions: ConnectAction[];
+  toolCalls: ToolCall[];
   startStream: (params: StreamParams) => Promise<void>;
   stopStream: () => void;
   reset: () => void;
@@ -38,6 +47,7 @@ export function useStreamingChat(): UseStreamingChatReturn {
   const [error, setError] = useState<Error | null>(null);
   const [userMessageId, setUserMessageId] = useState<string | null>(null);
   const [connectActions, setConnectActions] = useState<ConnectAction[]>([]);
+  const [toolCalls, setToolCalls] = useState<ToolCall[]>([]);
 
   const abortControllerRef = useRef<AbortController | null>(null);
   const textBufferRef = useRef('');
@@ -49,6 +59,7 @@ export function useStreamingChat(): UseStreamingChatReturn {
     setError(null);
     setUserMessageId(null);
     setConnectActions([]);
+    setToolCalls([]);
     textBufferRef.current = '';
   }, []);
 
@@ -68,6 +79,7 @@ export function useStreamingChat(): UseStreamingChatReturn {
     setIsWaitingForResponse(true);
     setIsStreaming(false);
     setConnectActions([]);
+    setToolCalls([]);
     textBufferRef.current = '';
 
     // Create new abort controller
@@ -139,19 +151,56 @@ export function useStreamingChat(): UseStreamingChatReturn {
               throw new Error(data.error);
             }
 
-            if (data.text) {
+            // New typed events
+            if (data.type === 'text') {
+              textBufferRef.current += data.content;
+              setStreamedText(cleanConnectActionMarkers(textBufferRef.current));
+            } else if (data.type === 'tool_call_start') {
+              setToolCalls(prev => [
+                ...prev,
+                {
+                  toolCallId: data.toolCallId,
+                  toolName: data.toolName,
+                  displayName: data.displayName || data.toolName,
+                  status: 'calling',
+                },
+              ]);
+            } else if (data.type === 'tool_call_result') {
+              setToolCalls(prev =>
+                prev.map(tc =>
+                  tc.toolCallId === data.toolCallId
+                    ? {
+                        ...tc,
+                        status: data.status === 'error' ? 'error' as const : 'success' as const,
+                        summary: data.summary,
+                        displayName: data.displayName || tc.displayName,
+                      }
+                    : tc
+                )
+              );
+            } else if (data.type === 'connect_action' && data.connectActions) {
+              setConnectActions(data.connectActions);
+            }
+
+            // Legacy format support (backward compat with old text-only events)
+            if (data.text && !data.type) {
               textBufferRef.current += data.text;
-              // Clean [CONNECT_ACTION:...] markers for display
               setStreamedText(cleanConnectActionMarkers(textBufferRef.current));
             }
 
-            // Handle connect actions from agentic UI
-            if (data.connectActions && Array.isArray(data.connectActions)) {
+            // Legacy connect actions format
+            if (data.connectActions && !data.type) {
               setConnectActions(data.connectActions);
             }
 
             if (data.done) {
-              // Stream complete
+              // Persist tool calls from done signal if available
+              if (data.toolCalls && Array.isArray(data.toolCalls)) {
+                setToolCalls(data.toolCalls.map((tc: any) => ({
+                  ...tc,
+                  status: tc.status || 'success',
+                })));
+              }
               break;
             }
           } catch (parseError: any) {
@@ -190,6 +239,7 @@ export function useStreamingChat(): UseStreamingChatReturn {
     error,
     userMessageId,
     connectActions,
+    toolCalls,
     startStream,
     stopStream,
     reset,

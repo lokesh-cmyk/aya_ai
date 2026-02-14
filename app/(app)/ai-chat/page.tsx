@@ -151,6 +151,7 @@ export default function AIChatPage() {
     isWaitingForResponse,
     error: streamError,
     connectActions: streamConnectActions,
+    toolCalls: streamToolCalls,
     startStream,
     stopStream,
     reset: resetStream,
@@ -591,7 +592,7 @@ export default function AIChatPage() {
                     )}
 
                     {/* Streaming Message */}
-                    {isStreaming && streamedText && (
+                    {isStreaming && (streamedText || streamToolCalls.length > 0) && (
                       <MessageBubble
                         message={{
                           id: "streaming",
@@ -603,6 +604,7 @@ export default function AIChatPage() {
                         userInitial={userInitial}
                         isStreaming={true}
                         streamedContent={streamedText}
+                        toolCalls={streamToolCalls}
                       />
                     )}
 
