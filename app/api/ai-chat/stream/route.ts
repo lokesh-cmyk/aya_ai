@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server';
 import { cookies } from 'next/headers';
 import { auth, getSessionCookie } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { streamText } from 'ai';
+import { streamText, stepCountIs } from 'ai';
 import { anthropic } from '@ai-sdk/anthropic';
 import {
   searchMemories,
@@ -438,14 +438,14 @@ export async function POST(request: NextRequest) {
             system: systemPrompt,
             messages,
             tools: hasTools ? composioTools : undefined,
-            maxSteps: hasTools ? 10 : 1,
-            maxTokens: isThinkingEnabled ? 16000 : 8000,
+            stopWhen: hasTools ? stepCountIs(10) : stepCountIs(1),
+            maxOutputTokens: isThinkingEnabled ? 16000 : 8000,
           });
 
           // Use fullStream to get ALL events including tool calls
           for await (const part of result.fullStream) {
             switch (part.type) {
-              case 'text': {
+              case 'text-delta': {
                 fullResponse += part.text;
                 controller.enqueue(
                   encoder.encode(`data: ${JSON.stringify({ type: 'text', content: part.text })}\n\n`)
@@ -468,7 +468,7 @@ export async function POST(request: NextRequest) {
 
               case 'tool-result': {
                 const displayName = getToolDisplayName(part.toolName);
-                const summary = summarizeToolResult(part.toolName, part.result);
+                const summary = summarizeToolResult(part.toolName, (part as any).output);
 
                 toolCallsMetadata.push({
                   toolCallId: part.toolCallId,
