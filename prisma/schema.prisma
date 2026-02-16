@@ -48,6 +48,9 @@ model User {
   role                UserRole  @default(EDITOR)
   timezone            String?   @default("UTC") // IANA timezone (e.g., "America/New_York", "Europe/London")
   onboardingCompleted Boolean   @default(false) // Set to true after user completes onboarding
+  whatsappPhone       String?   @unique
+  whatsappLinkedAt    DateTime?
+  whatsappDigestEnabled Boolean @default(true)
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
   
@@ -85,6 +88,9 @@ model User {
   // Task watching and reactions
   watchedTasks        TaskWatcher[]
   commentReactions    TaskCommentReaction[]
+
+  // WhatsApp relations
+  whatsappConversations WhatsAppConversation[]
 
   @@index([teamId])
   @@index([email])
@@ -748,4 +754,35 @@ model TaskCommentReaction {
   @@unique([commentId, userId])
   @@index([commentId])
   @@index([userId])
+}
+
+// WhatsApp Integration Models
+model WhatsAppConversation {
+  id                String   @id @default(cuid())
+  userId            String
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  isActive          Boolean  @default(true)
+  preferredLanguage String?  @default("en")
+  metadata          Json?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  messages          WhatsAppMessage[]
+
+  @@index([userId])
+  @@index([isActive])
+}
+
+model WhatsAppMessage {
+  id             String   @id @default(cuid())
+  conversationId String
+  conversation   WhatsAppConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role           String   // "user" | "assistant"
+  content        String
+  wahaMessageId  String?  @unique
+  metadata       Json?
+  createdAt      DateTime @default(now())
+
+  @@index([conversationId])
+  @@index([wahaMessageId])
 }
