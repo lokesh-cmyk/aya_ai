@@ -87,12 +87,13 @@ export async function processMessage(
       },
     });
 
-    // Load conversation history
+    // Load conversation history (most recent messages, then reverse for chronological order)
     const history = await prisma.whatsAppMessage.findMany({
       where: { conversationId: conversation.id },
-      orderBy: { createdAt: "asc" },
+      orderBy: { createdAt: "desc" },
       take: MAX_HISTORY_MESSAGES,
     });
+    history.reverse();
 
     // Build AI context (same as web chat)
     const userData = await loadUserContext(user.id, user.teamId);
@@ -161,7 +162,7 @@ export async function processMessage(
         metadata: {
           toolCalls: result.toolCalls?.map((tc) => ({
             name: tc.toolName,
-            args: tc.input as any,
+            args: (tc as any).args ?? (tc as any).input,
           })),
           model: "claude-sonnet-4-5-20250929",
           includeTools,

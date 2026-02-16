@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
-import { createHmac } from "crypto";
+import { createHmac, timingSafeEqual } from "crypto";
 import { inngest } from "@/lib/inngest/client";
 import {
   sendText,
@@ -25,7 +25,8 @@ function verifyHmac(body: string, signature: string | null): boolean {
   const expected = createHmac("sha512", WEBHOOK_SECRET)
     .update(body)
     .digest("hex");
-  return signature === expected;
+  if (signature.length !== expected.length) return false;
+  return timingSafeEqual(Buffer.from(signature), Buffer.from(expected));
 }
 
 export async function POST(request: NextRequest) {
@@ -72,17 +73,14 @@ export async function POST(request: NextRequest) {
 
   const phone = fromChatId(chatId);
 
-  // Process asynchronously — ACK webhook immediately
-  const processingPromise = handleIncomingMessage(
-    phone,
-    messageBody,
-    wahaMessageId,
-    payload
-  );
-
-  processingPromise.catch((error) => {
+  // Process message and then respond
+  // We await here to ensure the serverless function stays alive until processing completes.
+  // WAHA does not require a fast webhook response — any 2xx is fine.
+  try {
+    await handleIncomingMessage(phone, messageBody, wahaMessageId, payload);
+  } catch (error) {
     console.error("[waha-webhook] Processing error:", error);
-  });
+  }
 
   return NextResponse.json({ ok: true });
 }

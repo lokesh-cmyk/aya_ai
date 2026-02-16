@@ -3,7 +3,37 @@ import { inngest } from "../client";
 import { getSessionStatus, restartSession } from "@/lib/integrations/waha";
 import { prisma } from "@/lib/prisma";
 
-let consecutiveFailures = 0;
+const FAILURE_THRESHOLD = 3;
+const HEALTH_KEY = "waha_consecutive_failures";
+
+/**
+ * Get the current consecutive failure count from the database.
+ * Uses the Webhook model as a simple key-value store.
+ */
+async function getFailureCount(): Promise<number> {
+  const record = await prisma.webhook.findFirst({
+    where: { source: HEALTH_KEY },
+    orderBy: { createdAt: "desc" },
+  });
+  if (!record) return 0;
+  const payload = record.payload as any;
+  return payload?.count ?? 0;
+}
+
+/**
+ * Set the consecutive failure count in the database.
+ */
+async function setFailureCount(count: number): Promise<void> {
+  // Upsert — delete old records and create new one
+  await prisma.webhook.deleteMany({ where: { source: HEALTH_KEY } });
+  await prisma.webhook.create({
+    data: {
+      source: HEALTH_KEY,
+      payload: { count },
+      processed: true,
+    },
+  });
+}
 
 /**
  * Monitor WAHA session health every 5 minutes.
@@ -23,12 +53,20 @@ export const wahaSessionHealthCheck = inngest.createFunction(
     });
 
     if (status.ok && status.status === "WORKING") {
-      consecutiveFailures = 0;
+      // Reset failure count
+      await step.run("reset-counter", async () => {
+        await setFailureCount(0);
+      });
       return { healthy: true, status: status.status };
     }
 
-    // Session not healthy — attempt restart
-    consecutiveFailures++;
+    // Session not healthy — increment failure count and attempt restart
+    const failureCount = await step.run("increment-counter", async () => {
+      const current = await getFailureCount();
+      const newCount = current + 1;
+      await setFailureCount(newCount);
+      return newCount;
+    });
 
     const restartResult = await step.run("restart-session", async () => {
       try {
@@ -39,10 +77,9 @@ export const wahaSessionHealthCheck = inngest.createFunction(
       }
     });
 
-    // After 3 consecutive failures, notify admin
-    if (consecutiveFailures >= 3) {
+    // After threshold consecutive failures, notify admin
+    if (failureCount >= FAILURE_THRESHOLD) {
       await step.run("notify-admin", async () => {
-        // Find admin users
         const admins = await prisma.user.findMany({
           where: { role: "ADMIN" },
           select: { id: true },
@@ -53,8 +90,8 @@ export const wahaSessionHealthCheck = inngest.createFunction(
             data: {
               userId: admin.id,
               title: "WAHA WhatsApp Session Down",
-              message: `WhatsApp session has been unhealthy for ${consecutiveFailures} consecutive checks. Last status: ${status.status}. Auto-restart ${restartResult.restarted ? "succeeded" : "failed"}.`,
-              type: "ALERT",
+              message: `WhatsApp session has been unhealthy for ${failureCount} consecutive checks. Last status: ${status.status}. Auto-restart ${restartResult.restarted ? "succeeded" : "failed"}.`,
+              type: "error",
             },
           });
         }
@@ -64,7 +101,7 @@ export const wahaSessionHealthCheck = inngest.createFunction(
     return {
       healthy: false,
       status: status.status,
-      consecutiveFailures,
+      consecutiveFailures: failureCount,
       restarted: restartResult.restarted,
     };
   }
