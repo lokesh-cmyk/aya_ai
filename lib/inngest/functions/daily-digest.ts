@@ -3,6 +3,8 @@ import { inngest } from "../client";
 import { prisma } from "@/lib/prisma";
 import { generateDailyDigestEmail } from "@/lib/agents/daily-digest-agent";
 import { sendDailyDigestEmail } from "@/lib/emails/daily-digest";
+import { sendText, sendVoice, toChatId } from "@/lib/integrations/waha";
+import { generateVoiceNote, generateSpeechScript } from "@/lib/whatsapp/voice";
 
 /**
  * Helper function to check if it's 8 AM in a given timezone
@@ -138,6 +140,8 @@ export const processTeamDigest = inngest.createFunction(
               email: true,
               name: true,
               timezone: true,
+              whatsappPhone: true,
+              whatsappDigestEnabled: true,
             },
           },
         },
@@ -181,6 +185,76 @@ export const processTeamDigest = inngest.createFunction(
       })
     );
 
+    // Send WhatsApp digest to linked users
+    const whatsappResults = await step.run(
+      `send-whatsapp-digest-${teamId}`,
+      async () => {
+        const linkedUsers = team!.users.filter(
+          (u: any) => u.whatsappPhone && u.whatsappDigestEnabled
+        );
+
+        if (linkedUsers.length === 0) {
+          return { sent: 0, skipped: "no linked users" };
+        }
+
+        const results = [];
+
+        for (const user of linkedUsers) {
+          try {
+            const chatId = toChatId(user.whatsappPhone!);
+
+            // Get user's preferred language from their last WhatsApp conversation
+            const lastConversation = await prisma.whatsAppConversation.findFirst({
+              where: { userId: user.id, isActive: true },
+              select: { preferredLanguage: true },
+            });
+            const language = lastConversation?.preferredLanguage || "en";
+
+            // Format digest for WhatsApp
+            const whatsappDigest = formatWhatsAppDigest(
+              digest.text,
+              user.name || "there",
+              teamName
+            );
+            await sendText(chatId, whatsappDigest);
+
+            // Generate and send voice note
+            try {
+              const speechScript = await generateSpeechScript(
+                digest.text,
+                user.name || "there",
+                language
+              );
+              const voiceNote = await generateVoiceNote(speechScript);
+              await sendVoice(chatId, {
+                data: voiceNote.data,
+                mimetype: voiceNote.mimetype,
+              });
+              results.push({ userId: user.id, success: true, voice: true });
+            } catch (voiceError: any) {
+              console.error(
+                `[daily-digest] Voice note failed for ${user.email}:`,
+                voiceError
+              );
+              results.push({ userId: user.id, success: true, voice: false });
+            }
+          } catch (error: any) {
+            console.error(
+              `[daily-digest] WhatsApp digest failed for ${user.email}:`,
+              error
+            );
+            results.push({
+              userId: user.id,
+              success: false,
+              error: error.message,
+            });
+          }
+        }
+
+        return { sent: results.filter((r) => r.success).length, results };
+      }
+    );
+
     return {
       teamId,
       teamName,
@@ -191,6 +265,31 @@ export const processTeamDigest = inngest.createFunction(
         value: result.status === "fulfilled" ? result.value : null,
         reason: result.status === "rejected" ? result.reason : null,
       })),
+      whatsappResults,
     };
   }
 );
+
+/**
+ * Format a digest email text into WhatsApp-friendly format
+ */
+function formatWhatsAppDigest(
+  emailText: string,
+  userName: string,
+  teamName: string
+): string {
+  const today = new Date().toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+
+  return `\u{1F305} *Good morning, ${userName}!*
+
+Here's your daily standup for *${today}* \u2014 _${teamName}_
+
+${emailText.substring(0, 3000)}
+
+_Reply with any question for details, or ask me anything!_`;
+}
