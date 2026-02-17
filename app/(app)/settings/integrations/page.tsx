@@ -33,7 +33,7 @@ function ComposioIntegrationsSection({ queryClient, onClickUpConnected }: { quer
     queryKey: ["composio-status", session?.user?.id],
     queryFn: async () => {
       const res = await fetch("/api/integrations/composio/status");
-      if (!res.ok) return { googleCalendar: false, clickUp: false, instagram: false, linkedin: false };
+      if (!res.ok) return { googleCalendar: false, clickUp: false, instagram: [], linkedin: false };
       return res.json();
     },
     enabled: !!session?.user?.id,
@@ -78,6 +78,25 @@ function ComposioIntegrationsSection({ queryClient, onClickUpConnected }: { quer
     },
   });
 
+  const disconnectComposioMutation = useMutation({
+    mutationFn: async (connectedAccountId: string) => {
+      const res = await fetch(`/api/integrations/composio/disconnect?connectedAccountId=${connectedAccountId}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Failed to disconnect");
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["composio-status"] });
+      toast.success("Instagram account disconnected", { id: "composio-disconnect" });
+    },
+    onError: (error: Error) => {
+      toast.error(`Disconnect failed: ${error.message}`, { id: "composio-disconnect" });
+    },
+  });
+
   const apps: Array<{ id: "googlecalendar" | "clickup" | "instagram" | "linkedin"; name: string; description: string; icon: typeof Calendar }> = [
     { id: "googlecalendar", name: "Google Calendar", description: "Sync events & check availability via AI chat", icon: Calendar },
     { id: "clickup", name: "ClickUp", description: "Manage tasks, spaces & lists with AI assistance", icon: ListTodo },
@@ -104,7 +123,7 @@ function ComposioIntegrationsSection({ queryClient, onClickUpConnected }: { quer
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {apps.map((app) => {
           const Icon = app.icon;
-          const isConnected = app.id === "googlecalendar" ? composioStatus?.googleCalendar : app.id === "clickup" ? composioStatus?.clickUp : app.id === "instagram" ? composioStatus?.instagram : composioStatus?.linkedin;
+          const isConnected = app.id === "googlecalendar" ? composioStatus?.googleCalendar : app.id === "clickup" ? composioStatus?.clickUp : app.id === "instagram" ? (composioStatus?.instagram?.length > 0) : composioStatus?.linkedin;
           const isConnecting = connectingApp === app.id;
           return (
             <div
@@ -128,7 +147,51 @@ function ComposioIntegrationsSection({ queryClient, onClickUpConnected }: { quer
               </div>
               <h3 className="text-base font-semibold text-gray-900 mb-1">{app.name}</h3>
               <p className="text-sm text-gray-500 mb-4 leading-relaxed">{app.description}</p>
-              {isConnected ? (
+              {app.id === "instagram" ? (
+                <div className="space-y-3">
+                  {/* Connected accounts list */}
+                  {(composioStatus?.instagram ?? []).map((account: any, index: number) => (
+                    <div key={account.id} className="flex items-center justify-between bg-emerald-500/5 rounded-2xl px-4 py-2.5 border border-emerald-500/20">
+                      <div className="flex items-center gap-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                        <span className="text-sm font-medium text-gray-900">
+                          {account.username ? `@${account.username}` : `Account ${index + 1}`}
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => disconnectComposioMutation.mutate(account.id)}
+                        disabled={disconnectComposioMutation.isPending}
+                        className="text-xs text-red-500 hover:text-red-700 font-medium"
+                      >
+                        Disconnect
+                      </button>
+                    </div>
+                  ))}
+
+                  {/* Add account button (if < 3) */}
+                  {(composioStatus?.instagram ?? []).length < 3 ? (
+                    <Button
+                      className="w-full rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-medium shadow-sm hover:shadow-md transition-all duration-300 ease-out h-10 text-sm"
+                      onClick={() => connectComposioMutation.mutate("instagram")}
+                      disabled={isConnecting}
+                    >
+                      {isConnecting ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Connecting...
+                        </>
+                      ) : (
+                        <>
+                          <ExternalLink className="w-4 h-4 mr-2" />
+                          {(composioStatus?.instagram ?? []).length === 0 ? "Connect Instagram" : "Add Another Account"}
+                        </>
+                      )}
+                    </Button>
+                  ) : (
+                    <p className="text-xs text-gray-400 text-center">Maximum 3 accounts connected</p>
+                  )}
+                </div>
+              ) : isConnected ? (
                 <div className="space-y-2">
                   <div className="flex items-center gap-2 text-sm text-emerald-600 bg-emerald-500/10 backdrop-blur-sm rounded-2xl px-4 py-2.5 border border-emerald-500/20">
                     <CheckCircle2 className="w-4 h-4" />
