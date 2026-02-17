@@ -28,6 +28,8 @@ interface Contact {
   isGmail?: boolean;
   isSlack?: boolean;
   isInstagram?: boolean;
+  connectedAccountId?: string;
+  accountUsername?: string;
   messages: Array<{
     id: string;
     content: string;
@@ -505,7 +507,7 @@ export function UnifiedBoxInbox() {
                   )}
                   {selectedIntegration === 'Instagram' && instagramContacts.length === 0 && (
                     <p className="text-xs mt-2">
-                      Connect Instagram in Settings → Integrations (AI Chat integrations) to see DMs here.
+                      Connect Instagram accounts (up to 3) in Settings → Integrations to see DMs here.
                     </p>
                   )}
                   {searchQuery && (
@@ -571,6 +573,11 @@ export function UnifiedBoxInbox() {
                                 {contact.isInstagram && (
                                   <span className="text-[10px] text-pink-500 bg-pink-50 px-1.5 py-0.5 rounded">
                                     Instagram
+                                  </span>
+                                )}
+                                {contact.isInstagram && contact.accountUsername && (
+                                  <span className="text-[10px] text-purple-500 bg-purple-50 px-1.5 py-0.5 rounded">
+                                    @{contact.accountUsername}
                                   </span>
                                 )}
                               </div>
