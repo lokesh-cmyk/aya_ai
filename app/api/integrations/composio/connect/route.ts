@@ -46,9 +46,31 @@ export async function GET(request: NextRequest) {
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.BETTER_AUTH_URL || "http://localhost:3000";
     const callbackUrl = shouldRedirect ? `${baseUrl}/ai-chat` : getIntegrationsCallbackUrl();
 
-    const connectionRequest = await composio.connectedAccounts.link(session.user.id, config.authConfigId, {
-      callbackUrl,
-    });
+    // For Instagram: check existing connections and enforce max 3 limit
+    let allowMultiple = false;
+    if (app === "instagram") {
+      const existing = await composio.connectedAccounts.list({
+        userIds: [session.user.id],
+        statuses: ["ACTIVE"],
+        toolkitSlugs: [config.slug],
+      });
+      const existingCount = ((existing as any).items ?? []).length;
+      if (existingCount >= 3) {
+        if (shouldRedirect) {
+          return NextResponse.redirect(new URL("/settings/integrations?error=instagram_max_accounts", request.url));
+        }
+        return NextResponse.json({ error: "Maximum 3 Instagram accounts allowed" }, { status: 400 });
+      }
+      if (existingCount > 0) {
+        allowMultiple = true;
+      }
+    }
+
+    const linkOptions: any = { callbackUrl };
+    if (allowMultiple) {
+      linkOptions.allowMultiple = true;
+    }
+    const connectionRequest = await composio.connectedAccounts.link(session.user.id, config.authConfigId, linkOptions);
 
     const url = (connectionRequest as { redirectUrl?: string }).redirectUrl ?? (connectionRequest as { redirect_url?: string }).redirect_url;
     if (!url || typeof url !== "string") {
