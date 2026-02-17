@@ -56,7 +56,8 @@ export const syncInstagramDMs = inngest.createFunction(
     for (const userId of userIds) {
       const accounts = connections[userId];
 
-      await step.run(`sync-user-${userId}`, async () => {
+      const syncedCount = await step.run(`sync-user-${userId}`, async () => {
+        let synced = 0;
         for (const account of accounts) {
           try {
             // Fetch conversations
@@ -161,17 +162,24 @@ export const syncInstagramDMs = inngest.createFunction(
             await redis.hset(`instagram:accounts:${userId}`, {
               [account.id]: JSON.stringify({ id: account.id, username: account.username, status: "ACTIVE" }),
             });
-            await redis.expire(`instagram:accounts:${userId}`, CACHE_TTL_SECONDS);
-
-            totalSynced++;
+            synced++;
           } catch (err) {
             logger.warn(`Failed to sync Instagram account ${account.id} for user ${userId}`, { error: String(err) });
           }
         }
 
+        // Set TTL on accounts hash once per user (after all accounts processed)
+        if (synced > 0) {
+          await redis.expire(`instagram:accounts:${userId}`, CACHE_TTL_SECONDS);
+        }
+
         // Update last sync timestamp
         await redis.set(`instagram:sync:last:${userId}`, new Date().toISOString(), { ex: CACHE_TTL_SECONDS });
+
+        return synced;
       });
+
+      totalSynced += syncedCount ?? 0;
     }
 
     return { synced: totalSynced, users: userIds.length };

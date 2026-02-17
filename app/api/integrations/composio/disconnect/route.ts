@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { getComposio } from "@/lib/composio-tools";
+import { getComposio, COMPOSIO_APPS } from "@/lib/composio-tools";
 
 /** DELETE ?connectedAccountId=ca_xxx - Disconnect a specific Composio connected account */
 export async function DELETE(request: NextRequest) {
@@ -17,10 +17,11 @@ export async function DELETE(request: NextRequest) {
 
     const composio = getComposio();
 
-    // Verify the account belongs to this user
+    // Verify the account belongs to this user and is an Instagram connection
     const list = await composio.connectedAccounts.list({
       userIds: [session.user.id],
       statuses: ["ACTIVE"],
+      toolkitSlugs: [COMPOSIO_APPS.instagram.slug],
     });
     const items = (list as { items?: Array<any> }).items ?? [];
     const account = items.find((item: any) => item.id === connectedAccountId);

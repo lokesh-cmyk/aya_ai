@@ -28,6 +28,8 @@ export async function GET(request: NextRequest) {
       const accountsMap = await redis.hgetall(`instagram:accounts:${session.user.id}`);
 
       if (accountsMap && Object.keys(accountsMap).length > 0) {
+        fromCache = true;
+
         // Fetch cached messages for each account
         const keys = Object.keys(accountsMap).map(
           (accountId) => `instagram:messages:${session.user.id}:${accountId}`
@@ -41,10 +43,6 @@ export async function GET(request: NextRequest) {
               allContacts.push(...contacts);
             }
           }
-        }
-
-        if (allContacts.length > 0) {
-          fromCache = true;
         }
       }
     } catch {

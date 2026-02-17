@@ -347,7 +347,7 @@ export function EmailViewer({ contact, message, onClose }: EmailViewerProps) {
                                         prose-a:text-blue-600 prose-a:no-underline hover:prose-a:underline
                                         prose-ul:my-3 prose-ol:my-3 prose-ul:pl-5 prose-ol:pl-5
                                         prose-li:my-1">
-                          {msg.content.includes('<') ? (
+                          {msg.content.includes('<') && !contact.isInstagram ? (
                             <div
                               dangerouslySetInnerHTML={{ __html: msg.content }}
                               className="[&>*]:mb-3 [&>ul]:list-disc [&>ol]:list-decimal [&_li]:ml-4"
@@ -414,6 +414,14 @@ export function EmailViewer({ contact, message, onClose }: EmailViewerProps) {
               <div className="flex items-center gap-2 mb-3">
                 <Reply className="w-4 h-4 text-gray-400" />
                 <span className="text-sm font-medium text-gray-700">Your Reply</span>
+              </div>
+
+              {/* Replying as indicator (above input) */}
+              <div className="mb-2 text-xs text-gray-400">
+                {contact.isInstagram && contact.accountUsername
+                  ? <>Replying as <span className="font-medium text-pink-500">@{contact.accountUsername}</span> to {contact.name || 'Instagram User'}</>
+                  : <>Replying to {contact.email || message.from || contact.channelName}</>
+                }
               </div>
 
               <Textarea
@@ -493,13 +501,6 @@ export function EmailViewer({ contact, message, onClose }: EmailViewerProps) {
                 )}
               </div>
 
-              {/* Replying to indicator */}
-              <div className="mt-3 text-xs text-gray-400 text-center">
-                {contact.isInstagram && contact.accountUsername
-                  ? <>Replying as <span className="font-medium text-pink-500">@{contact.accountUsername}</span> to {contact.name || 'Instagram User'}</>
-                  : <>Replying to {contact.email || message.from || contact.channelName}</>
-                }
-              </div>
             </div>
           </div>
         </div>
