@@ -1,10 +1,12 @@
 import { useEffect, useState, useRef } from "react";
-import { X, Reply, Forward, Archive, Trash2, MoreVertical, ExternalLink, Send, Paperclip, Loader2, Mail, MessageSquare } from "lucide-react";
+import { X, Reply, Forward, Archive, Trash2, MoreVertical, ExternalLink, Send, Paperclip, Loader2, Mail, MessageSquare, Instagram } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { format } from "date-fns";
 import { MessageChannel } from "@/app/generated/prisma/enums";
 import { useEmailSuggestions } from "@/hooks/useEmailSuggestions";
 import { EmailSuggestions } from "./EmailSuggestions";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 interface Contact {
   id: string;
@@ -14,6 +16,9 @@ interface Contact {
   isGmail?: boolean;
   isSlack?: boolean;
   isInstagram?: boolean;
+  connectedAccountId?: string;
+  accountUsername?: string;
+  conversationId?: string;
   channelId?: string;
   channelName?: string;
   messages: Array<{
@@ -43,6 +48,8 @@ export function EmailViewer({ contact, message, onClose }: EmailViewerProps) {
   const [isSending, setIsSending] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const queryClient = useQueryClient();
 
   const { suggestions, isLoading: suggestionsLoading, error: suggestionsError, fetchSuggestions } = useEmailSuggestions();
 
@@ -183,10 +190,43 @@ export function EmailViewer({ contact, message, onClose }: EmailViewerProps) {
     }
   };
 
+  const handleInstagramReply = async () => {
+    if (!replyText.trim() || !contact.isInstagram) return;
+    const connectedAccountId = contact.connectedAccountId || contact.messages?.[0]?.metadata?.connectedAccountId;
+    const conversationId = contact.conversationId || contact.messages?.[0]?.metadata?.conversationId;
+    if (!connectedAccountId || !conversationId) {
+      toast.error("Missing Instagram conversation context");
+      return;
+    }
+    setIsSending(true);
+    try {
+      const response = await fetch('/api/integrations/instagram/reply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ connectedAccountId, conversationId, text: replyText.trim() }),
+      });
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to send reply');
+      }
+      toast.success("Instagram reply sent");
+      setReplyText("");
+      queryClient.invalidateQueries({ queryKey: ['instagram-messages'] });
+    } catch (error: any) {
+      toast.error(`Failed to send reply: ${error.message}`);
+    } finally {
+      setIsSending(false);
+    }
+  };
+
   const threadMessages = contact.messages
     .filter(m => m.threadId === message.threadId && message.threadId)
     .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-  const messagesToShow = threadMessages.length > 0 ? threadMessages : [message];
+
+  // For Instagram, show all messages in the conversation (no thread filtering)
+  const messagesToShow = contact.isInstagram
+    ? [...contact.messages].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+    : threadMessages.length > 0 ? threadMessages : [message];
 
   return (
     <div
@@ -206,6 +246,10 @@ export function EmailViewer({ contact, message, onClose }: EmailViewerProps) {
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#4A154B] to-[#611f69] flex items-center justify-center shadow-lg shadow-purple-500/20 shrink-0">
                 <MessageSquare className="w-5 h-5 text-white" />
               </div>
+            ) : contact.isInstagram ? (
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#F58529] via-[#DD2A7B] to-[#8134AF] flex items-center justify-center shadow-lg shadow-pink-500/20 shrink-0">
+                <Instagram className="w-5 h-5 text-white" />
+              </div>
             ) : (
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/20 shrink-0">
                 <Mail className="w-5 h-5 text-white" />
@@ -213,10 +257,10 @@ export function EmailViewer({ contact, message, onClose }: EmailViewerProps) {
             )}
             <div className="min-w-0 flex-1">
               <h2 className="text-base font-semibold text-gray-900 truncate">
-                {contact.isSlack ? (contact.channelName || contact.name || 'Slack Channel') : (message.subject || '(no subject)')}
+                {contact.isSlack ? (contact.channelName || contact.name || 'Slack Channel') : contact.isInstagram ? (contact.name || 'Instagram DM') : (message.subject || '(no subject)')}
               </h2>
               <p className="text-sm text-gray-500 truncate">
-                {contact.isSlack ? (message.from || 'Unknown User') : (contact.name || message.from || contact.email)}
+                {contact.isSlack ? (message.from || 'Unknown User') : contact.isInstagram ? (contact.name || 'Instagram User') : (contact.name || message.from || contact.email)}
                 <span className="mx-2 text-gray-300">•</span>
                 <span className="text-xs">{formatFullDate(message.createdAt)}</span>
               </p>
@@ -248,7 +292,7 @@ export function EmailViewer({ contact, message, onClose }: EmailViewerProps) {
               <button className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-gray-600 hover:bg-white hover:shadow-sm transition-all">
                 <Reply className="w-3.5 h-3.5" /> Reply
               </button>
-              {!contact.isSlack && (
+              {!contact.isSlack && !contact.isInstagram && (
                 <>
                   <button className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-gray-600 hover:bg-white hover:shadow-sm transition-all">
                     <Forward className="w-3.5 h-3.5" /> Forward
@@ -420,6 +464,19 @@ export function EmailViewer({ contact, message, onClose }: EmailViewerProps) {
                     {isSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                     {isSending ? 'Sending...' : 'Send via Slack'}
                   </button>
+                ) : contact.isInstagram ? (
+                  <button
+                    onClick={handleInstagramReply}
+                    disabled={!replyText.trim() || isSending}
+                    className="cursor-pointer w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-medium
+                               bg-gradient-to-r from-[#F58529] via-[#DD2A7B] to-[#8134AF] text-white
+                               hover:from-[#f6973e] hover:via-[#e13585] hover:to-[#9340bb]
+                               disabled:opacity-50 disabled:cursor-not-allowed
+                               shadow-lg shadow-pink-500/20 transition-all duration-200"
+                  >
+                    {isSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                    {isSending ? 'Sending...' : 'Send via Instagram'}
+                  </button>
                 ) : (
                   <button
                     onClick={handleGmailReply}
@@ -438,7 +495,10 @@ export function EmailViewer({ contact, message, onClose }: EmailViewerProps) {
 
               {/* Replying to indicator */}
               <div className="mt-3 text-xs text-gray-400 text-center">
-                Replying to {contact.email || message.from || contact.channelName}
+                {contact.isInstagram && contact.accountUsername
+                  ? <>Replying as <span className="font-medium text-pink-500">@{contact.accountUsername}</span> to {contact.name || 'Instagram User'}</>
+                  : <>Replying to {contact.email || message.from || contact.channelName}</>
+                }
               </div>
             </div>
           </div>
