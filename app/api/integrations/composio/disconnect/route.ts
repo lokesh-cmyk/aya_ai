@@ -36,6 +36,7 @@ export async function DELETE(request: NextRequest) {
       const { getRedis } = await import("@/lib/redis");
       const redis = getRedis();
       await redis.del(`instagram:messages:${session.user.id}:${connectedAccountId}`);
+      await redis.hdel(`instagram:accounts:${session.user.id}`, connectedAccountId);
     } catch {
       // Redis not configured or unavailable — non-fatal
     }
