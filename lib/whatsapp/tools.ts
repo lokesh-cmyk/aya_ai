@@ -43,7 +43,7 @@ export function getNotesAndReminderTools(userId: string, timezone: string | null
             userId,
             content: content.slice(0, 4000),
             title: title || null,
-            tags: tags || [],
+            tags: (tags || []).map((t) => t.toLowerCase()),
             source: "whatsapp",
           },
         });
@@ -120,7 +120,7 @@ export function getNotesAndReminderTools(userId: string, timezone: string | null
         const data: any = {};
         if (content !== undefined) data.content = content.slice(0, 4000);
         if (title !== undefined) data.title = title;
-        if (tags !== undefined) data.tags = tags;
+        if (tags !== undefined) data.tags = tags.map((t) => t.toLowerCase());
 
         const updated = await prisma.userNote.update({
           where: { id: noteId },
