@@ -91,6 +91,8 @@ model User {
 
   // WhatsApp relations
   whatsappConversations WhatsAppConversation[]
+  userNotes             UserNote[]
+  reminders             Reminder[]
 
   @@index([teamId])
   @@index([email])
@@ -785,4 +787,43 @@ model WhatsAppMessage {
 
   @@index([conversationId])
   @@index([wahaMessageId])
+}
+
+model UserNote {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String?
+  content   String
+  tags      String[]
+  source    String   @default("whatsapp")
+  metadata  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model Reminder {
+  id           String    @id @default(cuid())
+  userId       String
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title        String
+  description  String?
+  remindAt     DateTime
+  timezone     String
+  rrule        String?
+  status       String    @default("active")
+  pingSent24h  Boolean   @default(false)
+  pingSent30m  Boolean   @default(false)
+  lastPingAt   DateTime?
+  source       String    @default("whatsapp")
+  metadata     Json?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([status, remindAt])
+  @@index([remindAt])
 }
