@@ -109,7 +109,7 @@ export async function processMessage(
       // Add Composio tools (external integrations)
       try {
         const sessionTools = await getComposioSessionTools(user.id);
-        tools = { ...tools, ...sessionTools.tools };
+        tools = { ...sessionTools.tools, ...tools };
       } catch (e) {
         console.warn("[whatsapp] Failed to load Composio tools:", e);
       }

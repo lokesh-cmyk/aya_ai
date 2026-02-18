@@ -4,6 +4,23 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { RRule } from "rrule";
 
+/** Format a date in the user's timezone for display. */
+function formatDisplayTime(date: Date, timezone: string): string {
+  try {
+    return new Intl.DateTimeFormat("en-US", {
+      timeZone: timezone,
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    }).format(date);
+  } catch {
+    return date.toISOString();
+  }
+}
+
 /**
  * Build custom AI tools for notes and reminders.
  * Each tool is scoped to the given userId for authorization.
@@ -213,7 +230,8 @@ export function getNotesAndReminderTools(userId: string, timezone: string | null
             id: r.id,
             title: r.title,
             description: r.description,
-            remindAt: r.remindAt.toISOString(),
+            remindAt: formatDisplayTime(r.remindAt, r.timezone),
+            remindAtISO: r.remindAt.toISOString(),
             timezone: r.timezone,
             recurring: !!r.rrule,
             rrule: r.rrule,
