@@ -22,6 +22,7 @@ import {
 } from "@/lib/inngest/functions/meeting-orchestration";
 import { processComplexWhatsAppMessage } from "@/lib/inngest/functions/whatsapp-message";
 import { wahaSessionHealthCheck } from "@/lib/inngest/functions/whatsapp-session-health";
+import { whatsappReminderDelivery } from "@/lib/inngest/functions/whatsapp-reminder-delivery";
 import { syncInstagramDMs } from "@/lib/inngest/functions/instagram-dm-sync";
 
 // Create an API that serves Inngest functions
@@ -49,6 +50,7 @@ export const { GET, POST, PUT } = serve({
     // WhatsApp functions
     processComplexWhatsAppMessage, // Process complex WhatsApp messages via Inngest
     wahaSessionHealthCheck, // Cron: WAHA session health monitoring
+    whatsappReminderDelivery, // Cron: WhatsApp reminder pings (every minute)
     // Instagram DM sync
     syncInstagramDMs, // Cron: sync Instagram DMs to Redis cache
   ],
