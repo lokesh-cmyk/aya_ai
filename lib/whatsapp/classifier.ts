@@ -24,6 +24,9 @@ const COMPLEX_KEYWORDS = [
   "instagram", "linkedin", "social media", "post", "posts",
   // Meetings
   "transcript", "recording", "action items", "standup",
+  // Notes & Reminders
+  "note", "notes", "remind", "reminder", "reminders",
+  "save this", "remember this", "note this",
 ];
 
 // Patterns that are definitely simple regardless of keywords
