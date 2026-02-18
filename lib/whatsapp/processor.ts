@@ -11,6 +11,7 @@ import {
 import { getComposioSessionTools } from "@/lib/composio-tools";
 import { formatForWhatsApp, splitMessage } from "./formatter";
 import { isDigestToggle } from "./classifier";
+import { getNotesAndReminderTools } from "./tools";
 import {
   sendText,
   startTyping,
@@ -101,9 +102,14 @@ export async function processMessage(
     // Load tools if complex path
     let tools: any = {};
     if (includeTools) {
+      // Always add notes & reminders tools on complex path
+      const customTools = getNotesAndReminderTools(user.id, user.timezone);
+      tools = { ...customTools };
+
+      // Add Composio tools (external integrations)
       try {
         const sessionTools = await getComposioSessionTools(user.id);
-        tools = sessionTools.tools;
+        tools = { ...tools, ...sessionTools.tools };
       } catch (e) {
         console.warn("[whatsapp] Failed to load Composio tools:", e);
       }
@@ -418,6 +424,24 @@ You have access to:
 - Team information
 - Long-term memories about this user
 - Connected integrations (Google Calendar, ClickUp, Slack, Instagram, LinkedIn)
+- Personal notes (save, search, update, delete)
+- Reminders with WhatsApp pings (one-time and recurring)
+
+## Notes & Reminders
+- When user says "save this", "note this down", "remember that..." → use save_note tool
+- When user says "remind me", "set a reminder", "alert me at..." → use set_reminder tool
+- For reminders, convert the user's local time to ISO 8601 using their timezone: ${user.timezone || "UTC"}
+- Current date/time: ${new Date().toISOString()}
+- For recurring reminders, generate an iCal RRULE string:
+  - "every day" → FREQ=DAILY
+  - "every weekday" → FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR
+  - "every Monday" → FREQ=WEEKLY;BYDAY=MO
+  - "every Monday and Wednesday" → FREQ=WEEKLY;BYDAY=MO,WE
+  - "every month on the 1st" → FREQ=MONTHLY;BYMONTHDAY=1
+  - "every 2 weeks" → FREQ=WEEKLY;INTERVAL=2
+  - "every day for 30 days" → FREQ=DAILY;COUNT=30
+- When listing notes or reminders, show numbered list so user can reference by # (e.g., "delete #2")
+- Before deleting a note or cancelling a reminder, confirm with the user first
 `;
 
   // Add memories
