@@ -71,6 +71,20 @@ const AVAILABLE_INTEGRATIONS: Record<string, IntegrationInfo> = {
     features: ['Send messages', 'View channels', 'Search conversations'],
     settingsPath: '/settings/integrations',
   },
+  microsoftTeams: {
+    name: 'Microsoft Teams',
+    description: 'Team collaboration, chat, channels, and meetings',
+    features: [
+      'Send and read messages in chats and channels',
+      'List teams, channels, and members',
+      'Create, schedule, and manage meetings',
+      'Search messages and files across Teams',
+      'Create teams, channels, and chats',
+      'Reply to channel messages',
+    ],
+    settingsPath: '/settings/integrations',
+    composioApp: 'microsoft_teams',
+  },
 };
 
 // Map model names to Claude model IDs
@@ -117,6 +131,7 @@ async function getConnectedIntegrations(userId: string, teamId?: string | null):
           COMPOSIO_APPS.clickup.slug,
           COMPOSIO_APPS.instagram.slug,
           COMPOSIO_APPS.linkedin.slug,
+          COMPOSIO_APPS.microsoft_teams.slug,
         ],
       });
       const items = (list as { items?: Array<{ toolkit?: { slug?: string }; toolkitSlug?: string }> }).items ?? [];
