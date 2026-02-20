@@ -28,6 +28,7 @@ interface Contact {
   isGmail?: boolean;
   isSlack?: boolean;
   isInstagram?: boolean;
+  isTeams?: boolean;
   connectedAccountId?: string;
   accountUsername?: string;
   messages: Array<{
@@ -136,6 +137,23 @@ export function UnifiedBoxInbox() {
     enabled: true,
   });
 
+  // Fetch Teams messages (live via Composio)
+  const { data: teamsData, isLoading: teamsLoading, refetch: refetchTeams, error: teamsError } = useQuery({
+    queryKey: ['teams-messages', selectedIntegration],
+    queryFn: async () => {
+      const res = await fetch('/api/integrations/teams/messages?type=chats&limit=50');
+      if (!res.ok) {
+        console.warn('Failed to fetch Teams messages:', res.statusText);
+        return { contacts: [], connected: false };
+      }
+      const data = await res.json();
+      return { ...data, connected: data.connected ?? true };
+    },
+    refetchInterval: 30000,
+    retry: 1,
+    enabled: true,
+  });
+
   // Fetch allowed email addresses for filtering
   const { data: allowedEmailsData } = useQuery({
     queryKey: ['allowed-emails', session?.user?.id],
@@ -172,6 +190,7 @@ export function UnifiedBoxInbox() {
         refetchGmail(),
         refetchSlack(),
         refetchInstagram(),
+        refetchTeams(),
       ]);
       toast.success("Messages synced successfully", { id: "sync-toast" });
     } catch (error) {
@@ -179,7 +198,7 @@ export function UnifiedBoxInbox() {
     } finally {
       setIsSyncing(false);
     }
-  }, [refetchContacts, refetchGmail, refetchSlack, refetchInstagram]);
+  }, [refetchContacts, refetchGmail, refetchSlack, refetchInstagram, refetchTeams]);
 
   // Connection status for integrations
   const getIntegrationStatus = (name: string): 'connected' | 'error' | 'loading' | 'disconnected' => {
@@ -198,6 +217,11 @@ export function UnifiedBoxInbox() {
         if (instagramLoading) return 'loading';
         if (instagramError) return 'error';
         if (instagramData?.connected && instagramData?.contacts?.length > 0) return 'connected';
+        return 'disconnected';
+      case 'Teams':
+        if (teamsLoading) return 'loading';
+        if (teamsError) return 'error';
+        if (teamsData?.connected && teamsData?.contacts?.length > 0) return 'connected';
         return 'disconnected';
       default:
         return 'disconnected';
@@ -292,12 +316,12 @@ export function UnifiedBoxInbox() {
   instagramContacts.forEach(instagramContact => {
     const key = instagramContact.id;
     const existing = contactsMap.get(key);
-    
+
     if (existing) {
       existing.messages = [
         ...existing.messages,
         ...instagramContact.messages,
-      ].sort((a, b) => 
+      ].sort((a, b) =>
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       );
       existing._count.messages = existing.messages.length;
@@ -305,6 +329,29 @@ export function UnifiedBoxInbox() {
       contactsMap.set(key, {
         ...instagramContact,
         isInstagram: true,
+      });
+    }
+  });
+
+  const teamsContacts: Contact[] = teamsData?.contacts || [];
+
+  // Add Teams contacts
+  teamsContacts.forEach(teamsContact => {
+    const key = teamsContact.id;
+    const existing = contactsMap.get(key);
+
+    if (existing) {
+      existing.messages = [
+        ...existing.messages,
+        ...teamsContact.messages,
+      ].sort((a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+      existing._count.messages = existing.messages.length;
+    } else {
+      contactsMap.set(key, {
+        ...teamsContact,
+        isTeams: true,
       });
     }
   });
@@ -319,7 +366,7 @@ export function UnifiedBoxInbox() {
       'Instagram': ['INSTAGRAM'],
       'LinkedIn': ['LINKEDIN'],
       'WhatsApp': ['WHATSAPP'],
-      'Teams': ['SLACK'], // Teams messages might use SLACK channel or similar
+      'Teams': ['TEAMS'],
     };
 
     const targetChannels = integrationChannelMap[selectedIntegration] || [];
@@ -329,6 +376,7 @@ export function UnifiedBoxInbox() {
       if (selectedIntegration === 'Gmail' && c.isGmail) return true;
       if (selectedIntegration === 'Slack' && c.isSlack) return true;
       if (selectedIntegration === 'Instagram' && c.isInstagram) return true;
+      if (selectedIntegration === 'Teams' && c.isTeams) return true;
 
       // Fall back to checking message channels
       if (targetChannels.length > 0) {
@@ -362,6 +410,7 @@ export function UnifiedBoxInbox() {
       LINKEDIN: "💼",
       SLACK: "💬",
       INSTAGRAM: "📸",
+      TEAMS: "👥",
     };
     return channelMap[channel] || "💬";
   };
@@ -376,6 +425,7 @@ export function UnifiedBoxInbox() {
       LINKEDIN: "text-blue-600",
       SLACK: "text-purple-500",
       INSTAGRAM: "text-pink-500",
+      TEAMS: "text-indigo-600",
     };
     return channelMap[channel] || "text-gray-500";
   };
@@ -471,7 +521,7 @@ export function UnifiedBoxInbox() {
           {/* Inbox List */}
           <div className="flex-1 bg-white overflow-y-auto min-h-0">
             <div className="px-8 py-4">
-              {(contactsLoading || gmailLoading || slackLoading || instagramLoading) ? (
+              {(contactsLoading || gmailLoading || slackLoading || instagramLoading || teamsLoading) ? (
                 <div className="space-y-2">
                   {[1, 2, 3, 4, 5].map((i) => (
                     <div key={i} className="flex items-start gap-4 p-3 rounded-lg animate-pulse">
@@ -508,6 +558,11 @@ export function UnifiedBoxInbox() {
                   {selectedIntegration === 'Instagram' && instagramContacts.length === 0 && (
                     <p className="text-xs mt-2">
                       Connect Instagram accounts (up to 3) in Settings → Integrations to see DMs here.
+                    </p>
+                  )}
+                  {selectedIntegration === 'Teams' && teamsContacts.length === 0 && (
+                    <p className="text-xs mt-2">
+                      Connect Microsoft Teams in Settings → Integrations to see your chats here.
                     </p>
                   )}
                   {searchQuery && (
@@ -578,6 +633,11 @@ export function UnifiedBoxInbox() {
                                 {contact.isInstagram && contact.accountUsername && (
                                   <span className="text-[10px] text-purple-500 bg-purple-50 px-1.5 py-0.5 rounded">
                                     @{contact.accountUsername}
+                                  </span>
+                                )}
+                                {contact.isTeams && (
+                                  <span className="text-[10px] text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">
+                                    Teams
                                   </span>
                                 )}
                               </div>
