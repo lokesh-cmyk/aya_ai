@@ -24,6 +24,7 @@ enum MessageChannel {
   FACEBOOK
   SLACK
   INSTAGRAM
+  TEAMS
 }
 
 enum MessageStatus {
