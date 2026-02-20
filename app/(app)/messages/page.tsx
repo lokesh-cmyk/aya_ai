@@ -36,6 +36,7 @@ const CHANNELS = [
   { id: "INSTAGRAM", label: "Instagram", icon: Instagram },
   { id: "TWITTER", label: "Twitter", icon: Twitter },
   { id: "FACEBOOK", label: "Facebook", icon: Facebook },
+  { id: "TEAMS", label: "Teams", icon: MessageSquare },
 ];
 
 const STATUSES = [
