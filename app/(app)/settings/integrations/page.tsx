@@ -3,7 +3,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, XCircle, Loader2, RefreshCw, Calendar, ListTodo, ExternalLink, Instagram, Linkedin, Sparkles, Plug, Zap, Shield, Download } from "lucide-react";
+import { CheckCircle2, XCircle, Loader2, RefreshCw, Calendar, ListTodo, ExternalLink, Instagram, Linkedin, MessageSquare, Sparkles, Plug, Zap, Shield, Download } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSession } from "@/lib/auth-client";
 
@@ -33,7 +33,7 @@ function ComposioIntegrationsSection({ queryClient, onClickUpConnected }: { quer
     queryKey: ["composio-status", session?.user?.id],
     queryFn: async () => {
       const res = await fetch("/api/integrations/composio/status");
-      if (!res.ok) return { googleCalendar: false, clickUp: false, instagram: [], linkedin: false };
+      if (!res.ok) return { googleCalendar: false, clickUp: false, instagram: [], linkedin: false, microsoftTeams: false };
       return res.json();
     },
     enabled: !!session?.user?.id,
@@ -54,7 +54,7 @@ function ComposioIntegrationsSection({ queryClient, onClickUpConnected }: { quer
   }, [composioStatus, composioLoading, onClickUpConnected]);
 
   const connectComposioMutation = useMutation({
-    mutationFn: async (app: "googlecalendar" | "clickup" | "instagram" | "linkedin") => {
+    mutationFn: async (app: "googlecalendar" | "clickup" | "instagram" | "linkedin" | "microsoft_teams") => {
       const res = await fetch(`/api/integrations/composio/connect?app=${app}`);
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
@@ -97,11 +97,12 @@ function ComposioIntegrationsSection({ queryClient, onClickUpConnected }: { quer
     },
   });
 
-  const apps: Array<{ id: "googlecalendar" | "clickup" | "instagram" | "linkedin"; name: string; description: string; icon: typeof Calendar }> = [
+  const apps: Array<{ id: "googlecalendar" | "clickup" | "instagram" | "linkedin" | "microsoft_teams"; name: string; description: string; icon: typeof Calendar }> = [
     { id: "googlecalendar", name: "Google Calendar", description: "Sync events & check availability via AI chat", icon: Calendar },
     { id: "clickup", name: "ClickUp", description: "Manage tasks, spaces & lists with AI assistance", icon: ListTodo },
     { id: "instagram", name: "Instagram", description: "Access DMs & insights through AI chat", icon: Instagram },
     { id: "linkedin", name: "LinkedIn", description: "Manage posts, profile & company info via AI", icon: Linkedin },
+    { id: "microsoft_teams", name: "Microsoft Teams", description: "Manage chats, channels, meetings & files via AI", icon: MessageSquare },
   ];
 
   if (composioLoading || !session?.user?.id) return null;
@@ -123,7 +124,7 @@ function ComposioIntegrationsSection({ queryClient, onClickUpConnected }: { quer
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {apps.map((app) => {
           const Icon = app.icon;
-          const isConnected = app.id === "googlecalendar" ? composioStatus?.googleCalendar : app.id === "clickup" ? composioStatus?.clickUp : app.id === "instagram" ? (composioStatus?.instagram?.length > 0) : composioStatus?.linkedin;
+          const isConnected = app.id === "googlecalendar" ? composioStatus?.googleCalendar : app.id === "clickup" ? composioStatus?.clickUp : app.id === "instagram" ? (composioStatus?.instagram?.length > 0) : app.id === "microsoft_teams" ? composioStatus?.microsoftTeams : composioStatus?.linkedin;
           const isConnecting = connectingApp === app.id;
           return (
             <div
