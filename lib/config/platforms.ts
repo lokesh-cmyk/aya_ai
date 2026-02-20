@@ -35,6 +35,14 @@ import {
       color: 'text-purple-600',
       bgColor: 'bg-purple-50',
     },
+    {
+      id: 'microsoft_teams',
+      name: 'Microsoft Teams',
+      icon: MessageSquare,
+      description: 'Connect Microsoft Teams for chats, channels, and meetings',
+      color: 'text-indigo-600',
+      bgColor: 'bg-indigo-50',
+    },
     // {
     //   id: 'whatsapp',
     //   name: 'WhatsApp',
