@@ -51,6 +51,42 @@ const TOOL_DISPLAY_NAMES: Record<string, string> = {
   LINKEDIN_GET_VIDEO: "Get Video",
   LINKEDIN_GET_VIDEOS: "Get Videos",
   LINKEDIN_REGISTER_IMAGE_UPLOAD: "Register Image Upload",
+
+  // Microsoft Teams
+  MICROSOFT_TEAMS_ADD_MEMBER_TO_TEAM: "Add Team Member",
+  MICROSOFT_TEAMS_ARCHIVE_TEAM: "Archive Team",
+  MICROSOFT_TEAMS_CHATS_GET_ALL_CHATS: "List Teams Chats",
+  MICROSOFT_TEAMS_CHATS_GET_ALL_MESSAGES: "Get Chat Messages",
+  MICROSOFT_TEAMS_CREATE_MEETING: "Create Teams Meeting",
+  MICROSOFT_TEAMS_CREATE_TEAM: "Create Team",
+  MICROSOFT_TEAMS_DELETE_TEAM: "Delete Team",
+  MICROSOFT_TEAMS_GET_CHANNEL: "Get Channel Details",
+  MICROSOFT_TEAMS_GET_CHAT_MESSAGE: "Get Chat Message",
+  MICROSOFT_TEAMS_GET_MY_PROFILE: "Get My Profile",
+  MICROSOFT_TEAMS_GET_TEAM: "Get Team Details",
+  MICROSOFT_TEAMS_GET_TEAM_OPERATION: "Get Operation Status",
+  MICROSOFT_TEAMS_LIST_MESSAGE_REPLIES: "List Message Replies",
+  MICROSOFT_TEAMS_LIST_TEAM_MEMBERS: "List Team Members",
+  MICROSOFT_TEAMS_LIST_TEAMS_TEMPLATES: "List Team Templates",
+  MICROSOFT_TEAMS_LIST_USER_JOINED_TEAMS: "List Joined Teams",
+  MICROSOFT_TEAMS_LIST_USERS: "List Organization Users",
+  MICROSOFT_TEAMS_SEARCH_FILES: "Search Teams Files",
+  MICROSOFT_TEAMS_SEARCH_MESSAGES: "Search Teams Messages",
+  MICROSOFT_TEAMS_TEAMS_CREATE_CHANNEL: "Create Channel",
+  MICROSOFT_TEAMS_TEAMS_CREATE_CHAT: "Create Chat",
+  MICROSOFT_TEAMS_TEAMS_GET_MESSAGE: "Get Channel Message",
+  MICROSOFT_TEAMS_TEAMS_LIST: "List Teams",
+  MICROSOFT_TEAMS_TEAMS_LIST_CHANNEL_MESSAGES: "List Channel Messages",
+  MICROSOFT_TEAMS_TEAMS_LIST_CHANNELS: "List Channels",
+  MICROSOFT_TEAMS_TEAMS_LIST_CHAT_MESSAGES: "List Chat Messages",
+  MICROSOFT_TEAMS_TEAMS_LIST_PEOPLE: "List People",
+  MICROSOFT_TEAMS_TEAMS_POST_CHANNEL_MESSAGE: "Post Channel Message",
+  MICROSOFT_TEAMS_TEAMS_POST_CHAT_MESSAGE: "Send Chat Message",
+  MICROSOFT_TEAMS_TEAMS_POST_MESSAGE_REPLY: "Reply to Message",
+  MICROSOFT_TEAMS_UNARCHIVE_TEAM: "Unarchive Team",
+  MICROSOFT_TEAMS_UPDATE_CHANNEL_MESSAGE: "Update Channel Message",
+  MICROSOFT_TEAMS_UPDATE_CHAT_MESSAGE: "Update Chat Message",
+  MICROSOFT_TEAMS_UPDATE_TEAM: "Update Team Settings",
 };
 
 /**
@@ -93,6 +129,16 @@ function itemLabelForTool(toolName: string): string {
   if (lower.includes("comment")) return "comments";
   if (lower.includes("insight")) return "insights";
   if (lower.includes("media")) return "media items";
+  if (lower.includes("channel")) return "channels";
+  if (lower.includes("team")) return "teams";
+  if (lower.includes("member")) return "members";
+  if (lower.includes("people")) return "people";
+  if (lower.includes("user")) return "users";
+  if (lower.includes("file")) return "files";
+  if (lower.includes("chat")) return "chats";
+  if (lower.includes("meeting")) return "meetings";
+  if (lower.includes("template")) return "templates";
+  if (lower.includes("repl")) return "replies";
   if (lower.includes("tool")) return "tools";
   return "items";
 }
