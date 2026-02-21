@@ -43,14 +43,14 @@ import {
       color: 'text-indigo-600',
       bgColor: 'bg-indigo-50',
     },
-    // {
-    //   id: 'whatsapp',
-    //   name: 'WhatsApp',
-    //   icon: MessageSquare,
-    //   description: 'Connect WhatsApp Business account',
-    //   color: 'text-green-600',
-    //   bgColor: 'bg-green-50',
-    // },
+    {
+      id: 'whatsapp',
+      name: 'WhatsApp',
+      icon: MessageSquare,
+      description: 'Connect up to 3 WhatsApp numbers for inbox DMs',
+      color: 'text-green-600',
+      bgColor: 'bg-green-50',
+    },
     // {
     //   id: 'linkedin',
     //   name: 'LinkedIn',

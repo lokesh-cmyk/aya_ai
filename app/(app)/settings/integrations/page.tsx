@@ -3,7 +3,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, XCircle, Loader2, RefreshCw, Calendar, ListTodo, ExternalLink, Instagram, Linkedin, MessageSquare, Sparkles, Plug, Zap, Shield, Download } from "lucide-react";
+import { CheckCircle2, XCircle, Loader2, RefreshCw, Calendar, ListTodo, ExternalLink, Instagram, Linkedin, MessageSquare, Sparkles, Plug, Zap, Shield, Download, Video } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSession } from "@/lib/auth-client";
 
@@ -13,6 +13,7 @@ import { PlatformCard } from "@/lib/integrations/PlatformCard";
 import { platforms } from "@/lib/config/platforms";
 import { SlackChannelSelector } from "@/components/integrations/SlackChannelSelector";
 import { ClickUpWorkspacePicker } from "@/components/integrations/ClickUpWorkspacePicker";
+import { WhatsAppConnectModal } from "@/components/integrations/WhatsAppConnectModal";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,7 +34,7 @@ function ComposioIntegrationsSection({ queryClient, onClickUpConnected }: { quer
     queryKey: ["composio-status", session?.user?.id],
     queryFn: async () => {
       const res = await fetch("/api/integrations/composio/status");
-      if (!res.ok) return { googleCalendar: false, clickUp: false, instagram: [], linkedin: false, microsoftTeams: false };
+      if (!res.ok) return { googleCalendar: false, clickUp: false, instagram: [], linkedin: false, microsoftTeams: false, zoom: false };
       return res.json();
     },
     enabled: !!session?.user?.id,
@@ -54,7 +55,7 @@ function ComposioIntegrationsSection({ queryClient, onClickUpConnected }: { quer
   }, [composioStatus, composioLoading, onClickUpConnected]);
 
   const connectComposioMutation = useMutation({
-    mutationFn: async (app: "googlecalendar" | "clickup" | "instagram" | "linkedin" | "microsoft_teams") => {
+    mutationFn: async (app: "googlecalendar" | "clickup" | "instagram" | "linkedin" | "microsoft_teams" | "zoom") => {
       const res = await fetch(`/api/integrations/composio/connect?app=${app}`);
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
@@ -97,12 +98,13 @@ function ComposioIntegrationsSection({ queryClient, onClickUpConnected }: { quer
     },
   });
 
-  const apps: Array<{ id: "googlecalendar" | "clickup" | "instagram" | "linkedin" | "microsoft_teams"; name: string; description: string; icon: typeof Calendar }> = [
+  const apps: Array<{ id: "googlecalendar" | "clickup" | "instagram" | "linkedin" | "microsoft_teams" | "zoom"; name: string; description: string; icon: typeof Calendar }> = [
     { id: "googlecalendar", name: "Google Calendar", description: "Sync events & check availability via AI chat", icon: Calendar },
     { id: "clickup", name: "ClickUp", description: "Manage tasks, spaces & lists with AI assistance", icon: ListTodo },
     { id: "instagram", name: "Instagram", description: "Access DMs & insights through AI chat", icon: Instagram },
     { id: "linkedin", name: "LinkedIn", description: "Manage posts, profile & company info via AI", icon: Linkedin },
     { id: "microsoft_teams", name: "Microsoft Teams", description: "Manage chats, channels, meetings & files via AI", icon: MessageSquare },
+    { id: "zoom", name: "Zoom", description: "Create meetings, manage recordings & webinars via AI", icon: Video },
   ];
 
   if (composioLoading || !session?.user?.id) return null;
@@ -124,7 +126,7 @@ function ComposioIntegrationsSection({ queryClient, onClickUpConnected }: { quer
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {apps.map((app) => {
           const Icon = app.icon;
-          const isConnected = app.id === "googlecalendar" ? composioStatus?.googleCalendar : app.id === "clickup" ? composioStatus?.clickUp : app.id === "instagram" ? (composioStatus?.instagram?.length > 0) : app.id === "microsoft_teams" ? composioStatus?.microsoftTeams : composioStatus?.linkedin;
+          const isConnected = app.id === "googlecalendar" ? composioStatus?.googleCalendar : app.id === "clickup" ? composioStatus?.clickUp : app.id === "instagram" ? (composioStatus?.instagram?.length > 0) : app.id === "microsoft_teams" ? composioStatus?.microsoftTeams : app.id === "zoom" ? composioStatus?.zoom : composioStatus?.linkedin;
           const isConnecting = connectingApp === app.id;
           return (
             <div
@@ -244,6 +246,54 @@ export default function IntegrationsPage() {
   const [disconnectDialogOpen, setDisconnectDialogOpen] = useState(false);
   const [disconnectAccountId, setDisconnectAccountId] = useState<string | null>(null);
   const [clickUpPickerOpen, setClickUpPickerOpen] = useState(false);
+
+  // WhatsApp Inbox state
+  const [waConnectModalOpen, setWaConnectModalOpen] = useState(false);
+  const [waConnectSlot, setWaConnectSlot] = useState(1);
+  const [waConnectSessionId, setWaConnectSessionId] = useState<string | null>(null);
+
+  // Fetch WhatsApp sessions
+  const { data: waSessions, refetch: refetchWaSessions } = useQuery({
+    queryKey: ["whatsapp-inbox-sessions"],
+    queryFn: async () => {
+      const res = await fetch("/api/integrations/whatsapp-inbox/sessions");
+      if (!res.ok) return { sessions: [] };
+      return res.json();
+    },
+    enabled: !!session?.user,
+  });
+
+  const handleWaConnect = async (slot: number) => {
+    try {
+      const res = await fetch("/api/integrations/whatsapp-inbox/sessions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slot }),
+      });
+      const data = await res.json();
+      if (data.session) {
+        setWaConnectSessionId(data.session.id);
+        setWaConnectSlot(slot);
+        setWaConnectModalOpen(true);
+      } else {
+        toast.error(data.error || "Failed to start WhatsApp connection");
+      }
+    } catch {
+      toast.error("Failed to start WhatsApp connection");
+    }
+  };
+
+  const handleWaDisconnect = async (sessionId: string) => {
+    try {
+      await fetch(`/api/integrations/whatsapp-inbox/sessions/${sessionId}`, {
+        method: "DELETE",
+      });
+      refetchWaSessions();
+      toast.success("WhatsApp disconnected");
+    } catch {
+      toast.error("Failed to disconnect WhatsApp");
+    }
+  };
 
   const handleClickUpConnected = useCallback(() => {
     setClickUpPickerOpen(true);
@@ -483,6 +533,88 @@ export default function IntegrationsPage() {
             })}
           </div>
         </div>
+
+        {/* WhatsApp Inbox Section */}
+        <div className="space-y-5">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-green-500/10 backdrop-blur-sm border border-green-500/20 flex items-center justify-center">
+              <MessageSquare className="w-5 h-5 text-green-600" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">WhatsApp Inbox</h2>
+              <p className="text-sm text-gray-500">Connect up to 3 WhatsApp numbers to receive and reply to DMs</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {[1, 2, 3].map((slot) => {
+              const slotSession = (waSessions?.sessions || []).find(
+                (s: any) => s.slot === slot
+              );
+
+              return (
+                <div
+                  key={slot}
+                  className="bg-white/60 backdrop-blur-xl rounded-3xl border border-gray-200/60 p-5 shadow-sm"
+                >
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-sm font-medium text-gray-500">Slot {slot}</span>
+                    {slotSession?.status === "connected" && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                        <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                        Connected
+                      </span>
+                    )}
+                  </div>
+
+                  {slotSession?.status === "connected" ? (
+                    <div className="space-y-3">
+                      <div>
+                        <p className="font-medium text-gray-900">{slotSession.displayName || "WhatsApp"}</p>
+                        <p className="text-sm text-gray-500">{slotSession.phone}</p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full rounded-xl text-red-600 hover:text-red-700 hover:bg-red-50"
+                        onClick={() => handleWaDisconnect(slotSession.id)}
+                      >
+                        Disconnect
+                      </Button>
+                    </div>
+                  ) : slotSession?.status === "connecting" || slotSession?.status === "qr_ready" ? (
+                    <div className="flex flex-col items-center gap-2 py-4">
+                      <Loader2 className="w-6 h-6 animate-spin text-green-500" />
+                      <p className="text-sm text-gray-500">Connecting...</p>
+                    </div>
+                  ) : (
+                    <Button
+                      className="w-full rounded-xl bg-green-600 hover:bg-green-700 text-white mt-2"
+                      onClick={() => handleWaConnect(slot)}
+                    >
+                      Connect WhatsApp
+                    </Button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* WhatsApp Connect Modal */}
+        <WhatsAppConnectModal
+          open={waConnectModalOpen}
+          onClose={() => {
+            setWaConnectModalOpen(false);
+            setWaConnectSessionId(null);
+            refetchWaSessions();
+          }}
+          onConnected={() => {
+            refetchWaSessions();
+          }}
+          sessionId={waConnectSessionId}
+          slot={waConnectSlot}
+        />
 
         {/* Security Info Card */}
         <div className="bg-white/60 backdrop-blur-xl rounded-3xl border border-gray-200/60 p-6 shadow-sm">
