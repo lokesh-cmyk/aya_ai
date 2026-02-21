@@ -114,6 +114,37 @@ The bridge publishes events to these Redis channels:
 | `wa:status:<sessionId>` | `{ sessionId, status, phone?, displayName? }` | Connection status changes |
 | `wa:message:<userId>` | `{ sessionId, message }` | Incoming message received |
 
+## Monorepo + Vercel: How It Works
+
+The main AYA AI app (Next.js) is hosted on **Vercel**. This bridge service lives in `services/whatsapp-bridge/` inside the same repo — and that's perfectly fine.
+
+**Vercel completely ignores the `services/` directory.** It only looks at your root `package.json`, `next.config.js`, and `app/` directory. It won't try to build, install, or run anything inside `services/`. You do not need to remove this folder.
+
+**They are two independent services that talk over the network:**
+
+| Service | Hosted On | Deployment |
+|---|---|---|
+| AYA AI (Next.js) | **Vercel** (unchanged) | Deploys as usual — zero changes needed |
+| WhatsApp Bridge | **Any cloud with long-lived processes** (Railway, Render, DigitalOcean, etc.) | Deploy only the `services/whatsapp-bridge` directory |
+
+**The only connection between them:**
+1. **Shared PostgreSQL database** — both read/write the same tables
+2. **REST API calls** — Next.js calls the bridge via `WHATSAPP_BRIDGE_URL`
+3. **Redis Pub/Sub** — real-time events between the two
+4. **WebSocket** — frontend connects directly to the bridge for live QR/status updates
+
+**After deploying the bridge, add these 3 env vars to your Vercel project settings:**
+
+```env
+WHATSAPP_BRIDGE_URL=https://your-bridge-domain.com
+WHATSAPP_BRIDGE_API_KEY=your-shared-secret
+NEXT_PUBLIC_WHATSAPP_BRIDGE_WS_URL=wss://your-bridge-domain.com/ws?apiKey=your-shared-secret
+```
+
+> **TL;DR:** Keep everything in one repo. Deploy Next.js on Vercel, deploy this bridge separately. They connect via env vars. No complications.
+
+---
+
 ## Production Deployment
 
 ### Build
