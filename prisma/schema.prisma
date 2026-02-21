@@ -92,6 +92,7 @@ model User {
 
   // WhatsApp relations
   whatsappConversations WhatsAppConversation[]
+  whatsappSessions      WhatsAppSession[] @relation("UserWhatsAppSessions")
   userNotes             UserNote[]
   reminders             Reminder[]
 
@@ -827,4 +828,30 @@ model Reminder {
   @@index([userId])
   @@index([status, remindAt])
   @@index([remindAt])
+}
+
+model WhatsAppSession {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation("UserWhatsAppSessions", fields: [userId], references: [id], onDelete: Cascade)
+  slot          Int       // 1, 2, or 3
+  phone         String?   // populated after successful connection
+  displayName   String?   // WhatsApp profile name
+  profilePicUrl String?
+  status        String    @default("disconnected") // disconnected | connecting | qr_ready | connected
+  lastSeen      DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([userId, slot])
+  @@unique([phone])
+  @@index([userId])
+  @@index([status])
+}
+
+model WhatsAppAuth {
+  id        String   @id // matches WhatsAppSession.id
+  creds     Json     // Baileys auth credentials blob
+  keys      Json     // Baileys signal keys blob
+  updatedAt DateTime @updatedAt
 }
