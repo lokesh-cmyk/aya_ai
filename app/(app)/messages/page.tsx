@@ -26,7 +26,12 @@ import {
   Instagram,
   Twitter,
   Facebook,
+  Settings,
 } from "lucide-react";
+import { WhatsAppChatList } from "@/components/messages/WhatsAppChatList";
+import { WhatsAppMessageView } from "@/components/messages/WhatsAppMessageView";
+import { WhatsAppReplyComposer } from "@/components/messages/WhatsAppReplyComposer";
+import Link from "next/link";
 
 const CHANNELS = [
   { id: "EMAIL", label: "Email", icon: Mail },
@@ -47,10 +52,34 @@ const STATUSES = [
   { id: "SCHEDULED", label: "Scheduled", color: "bg-yellow-100 text-yellow-700" },
 ];
 
+interface WhatsAppSession {
+  id: string;
+  slot: number;
+  phone: string | null;
+  displayName: string | null;
+  status: string;
+}
+
 export default function MessagesPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedChannels, setSelectedChannels] = useState<string[]>([]);
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
+  const [selectedWaChatId, setSelectedWaChatId] = useState<string | null>(null);
+  const [selectedWaSessionId, setSelectedWaSessionId] = useState<string | null>(null);
+
+  // Fetch WhatsApp sessions for live-fetch view
+  const { data: waSessions } = useQuery({
+    queryKey: ["whatsapp-sessions"],
+    queryFn: async () => {
+      const res = await fetch("/api/integrations/whatsapp-inbox/sessions");
+      if (!res.ok) return { sessions: [] };
+      return res.json() as Promise<{ sessions: WhatsAppSession[] }>;
+    },
+    staleTime: 60000,
+  });
+
+  const isWhatsAppView =
+    selectedChannels.length === 1 && selectedChannels[0] === "WHATSAPP";
 
   // Build query params based on filters
   const queryParams = useMemo(() => {
@@ -248,81 +277,146 @@ export default function MessagesPage() {
         </div>
       )}
 
-      {/* Messages List */}
-      {isLoading ? (
-        <div className="flex items-center justify-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-        </div>
-      ) : filteredMessages.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <MessageSquare className="w-12 h-12 text-gray-400 mb-4" />
-            <p className="text-gray-500 mb-2">
-              {hasActiveFilters ? "No messages match your filters" : "No messages yet"}
-            </p>
-            <p className="text-sm text-gray-400">
-              {hasActiveFilters
-                ? "Try adjusting your filters"
-                : "Messages from your integrated channels will appear here"}
-            </p>
-            {hasActiveFilters && (
-              <Button variant="outline" size="sm" className="mt-4" onClick={clearFilters}>
-                Clear Filters
-              </Button>
+      {/* WhatsApp Live-Fetch View */}
+      {isWhatsAppView ? (
+        <Card className="overflow-hidden">
+          <CardContent className="p-0">
+            {!waSessions?.sessions?.some((s) => s.status === "connected") ? (
+              <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
+                <MessageCircle className="w-12 h-12 text-green-300 mb-3" />
+                <p className="text-sm font-medium text-gray-700 mb-1">
+                  No WhatsApp numbers connected
+                </p>
+                <p className="text-xs text-gray-400 mb-4">
+                  Connect your WhatsApp in Settings to see live messages here.
+                </p>
+                <Link href="/settings/integrations">
+                  <Button variant="outline" size="sm" className="gap-2">
+                    <Settings className="w-4 h-4" />
+                    Go to Integrations
+                  </Button>
+                </Link>
+              </div>
+            ) : (
+              <div className="flex h-[600px]">
+                {/* Chat list */}
+                <div className="w-80 border-r border-gray-200 overflow-y-auto shrink-0">
+                  <WhatsAppChatList
+                    sessions={waSessions.sessions}
+                    selectedChatId={selectedWaChatId}
+                    selectedSessionId={selectedWaSessionId}
+                    onSelectChat={(chatId, sessionId) => {
+                      setSelectedWaChatId(chatId);
+                      setSelectedWaSessionId(sessionId);
+                    }}
+                  />
+                </div>
+
+                {/* Message thread + reply composer */}
+                <div className="flex-1 flex flex-col min-w-0">
+                  {selectedWaChatId && selectedWaSessionId ? (
+                    <>
+                      <div className="flex-1 overflow-hidden">
+                        <WhatsAppMessageView
+                          sessionId={selectedWaSessionId}
+                          chatId={selectedWaChatId}
+                          chatName=""
+                        />
+                      </div>
+                      <WhatsAppReplyComposer
+                        sessionId={selectedWaSessionId}
+                        chatId={selectedWaChatId}
+                      />
+                    </>
+                  ) : (
+                    <div className="flex items-center justify-center h-full text-gray-400 text-sm">
+                      Select a chat to view messages
+                    </div>
+                  )}
+                </div>
+              </div>
             )}
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-3">
-          {filteredMessages.map((message: any) => (
-            <Card key={message.id} className="hover:shadow-md transition-shadow">
-              <CardContent className="p-4">
-                <div className="flex items-start gap-4">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white font-semibold text-sm">
-                    {message.contact?.name?.charAt(0) || "?"}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between mb-1">
-                      <p className="font-medium text-gray-900">
-                        {message.contact?.name || "Unknown"}
-                      </p>
-                      <span className="text-xs text-gray-500">
-                        {new Date(message.createdAt).toLocaleDateString()}
-                      </span>
-                    </div>
-                    <p className="text-sm text-gray-600 line-clamp-2 mb-2">
-                      {message.content}
-                    </p>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 text-blue-700 flex items-center gap-1">
-                        {getChannelIcon(message.channel)}
-                        {message.channel}
-                      </span>
-                      <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-700">
-                        {message.direction}
-                      </span>
-                      <span
-                        className={`px-2 py-0.5 text-xs font-medium rounded-full ${getStatusColor(message.status)}`}
-                      >
-                        {message.status}
-                      </span>
-                    </div>
-                  </div>
-                </div>
+        <>
+          {/* Regular Messages List */}
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            </div>
+          ) : filteredMessages.length === 0 ? (
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center py-12">
+                <MessageSquare className="w-12 h-12 text-gray-400 mb-4" />
+                <p className="text-gray-500 mb-2">
+                  {hasActiveFilters ? "No messages match your filters" : "No messages yet"}
+                </p>
+                <p className="text-sm text-gray-400">
+                  {hasActiveFilters
+                    ? "Try adjusting your filters"
+                    : "Messages from your integrated channels will appear here"}
+                </p>
+                {hasActiveFilters && (
+                  <Button variant="outline" size="sm" className="mt-4" onClick={clearFilters}>
+                    Clear Filters
+                  </Button>
+                )}
               </CardContent>
             </Card>
-          ))}
-        </div>
-      )}
-
-      {/* Results count */}
-      {!isLoading && filteredMessages.length > 0 && (
-        <p className="text-sm text-gray-500 text-center">
-          Showing {filteredMessages.length} message{filteredMessages.length !== 1 ? "s" : ""}
-          {messagesData?.pagination?.total > filteredMessages.length && (
-            <> of {messagesData.pagination.total} total</>
+          ) : (
+            <div className="space-y-3">
+              {filteredMessages.map((message: any) => (
+                <Card key={message.id} className="hover:shadow-md transition-shadow">
+                  <CardContent className="p-4">
+                    <div className="flex items-start gap-4">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white font-semibold text-sm">
+                        {message.contact?.name?.charAt(0) || "?"}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between mb-1">
+                          <p className="font-medium text-gray-900">
+                            {message.contact?.name || "Unknown"}
+                          </p>
+                          <span className="text-xs text-gray-500">
+                            {new Date(message.createdAt).toLocaleDateString()}
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-600 line-clamp-2 mb-2">
+                          {message.content}
+                        </p>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 text-blue-700 flex items-center gap-1">
+                            {getChannelIcon(message.channel)}
+                            {message.channel}
+                          </span>
+                          <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-700">
+                            {message.direction}
+                          </span>
+                          <span
+                            className={`px-2 py-0.5 text-xs font-medium rounded-full ${getStatusColor(message.status)}`}
+                          >
+                            {message.status}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
           )}
-        </p>
+
+          {/* Results count */}
+          {!isLoading && filteredMessages.length > 0 && (
+            <p className="text-sm text-gray-500 text-center">
+              Showing {filteredMessages.length} message{filteredMessages.length !== 1 ? "s" : ""}
+              {messagesData?.pagination?.total > filteredMessages.length && (
+                <> of {messagesData.pagination.total} total</>
+              )}
+            </p>
+          )}
+        </>
       )}
     </div>
   );
