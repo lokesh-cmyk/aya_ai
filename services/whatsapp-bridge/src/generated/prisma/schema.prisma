@@ -1,0 +1,42 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id               String            @id
+  email            String            @unique
+  name             String
+  whatsappPhone    String?           @unique
+  whatsappSessions WhatsAppSession[] @relation("UserWhatsAppSessions")
+}
+
+model WhatsAppSession {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation("UserWhatsAppSessions", fields: [userId], references: [id], onDelete: Cascade)
+  slot          Int
+  phone         String?
+  displayName   String?
+  profilePicUrl String?
+  status        String    @default("disconnected")
+  lastSeen      DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([userId, slot])
+  @@unique([phone])
+  @@index([userId])
+  @@index([status])
+}
+
+model WhatsAppAuth {
+  id        String   @id
+  creds     Json
+  keys      Json
+  updatedAt DateTime @updatedAt
+}
