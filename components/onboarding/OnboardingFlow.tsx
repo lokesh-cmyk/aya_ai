@@ -15,6 +15,7 @@ import {
   ArrowRight,
   ArrowLeft,
   Loader2,
+  Phone,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -38,6 +39,7 @@ export function OnboardingFlow({ userId, onComplete }: OnboardingFlowProps) {
     organizationName: "",
     teamSize: "",
     useCase: "",
+    whatsappPhone: "",
     integrations: [] as string[],
   });
 
@@ -121,6 +123,39 @@ export function OnboardingFlow({ userId, onComplete }: OnboardingFlowProps) {
               </button>
             ))}
           </div>
+        </div>
+      ),
+    },
+    {
+      id: "whatsapp-phone",
+      title: "What's your WhatsApp number?",
+      description: "We use this to connect you with AYA, your AI assistant on WhatsApp",
+      component: (
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="whatsappPhone">WhatsApp Phone Number</Label>
+            <div className="relative">
+              <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <Input
+                id="whatsappPhone"
+                type="tel"
+                placeholder="+1 234 567 890"
+                value={formData.whatsappPhone}
+                onChange={(e) =>
+                  setFormData({ ...formData, whatsappPhone: e.target.value })
+                }
+                className="pl-10"
+                disabled={isLoading}
+              />
+            </div>
+            <p className="text-xs text-gray-500">
+              Enter your number with country code. AYA will use this to send you
+              daily digests and let you interact via WhatsApp.
+            </p>
+          </div>
+          <p className="text-xs text-gray-400 italic">
+            This is optional — you can skip and add it later from Settings.
+          </p>
         </div>
       ),
     },
@@ -248,8 +283,10 @@ export function OnboardingFlow({ userId, onComplete }: OnboardingFlowProps) {
       case 1:
         return formData.useCase;
       case 2:
-        return true; // Channel selection is optional
+        return true; // WhatsApp phone is optional
       case 3:
+        return true; // Channel selection is optional
+      case 4:
         return true; // Final connect step is optional
       default:
         return false;
@@ -313,6 +350,21 @@ export function OnboardingFlow({ userId, onComplete }: OnboardingFlowProps) {
           onboardingData: formData,
         }),
       });
+
+      // Save WhatsApp phone if provided
+      if (formData.whatsappPhone.trim()) {
+        try {
+          await fetch("/api/users/update-phone", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              whatsappPhone: formData.whatsappPhone.trim(),
+            }),
+          });
+        } catch {
+          // Non-critical — continue onboarding
+        }
+      }
 
       // If user selected integrations, deep-link them to the Integrations page
       if (formData.integrations.length > 0) {
