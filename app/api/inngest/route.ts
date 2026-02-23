@@ -20,6 +20,7 @@ import {
   handleTranscriptionReady,
   pollMeetingStatuses,
 } from "@/lib/inngest/functions/meeting-orchestration";
+import { sendMeetingWhatsAppSummary } from "@/lib/inngest/functions/meeting-whatsapp-summary";
 import { processComplexWhatsAppMessage } from "@/lib/inngest/functions/whatsapp-message";
 import { wahaSessionHealthCheck } from "@/lib/inngest/functions/whatsapp-session-health";
 import { whatsappReminderDelivery } from "@/lib/inngest/functions/whatsapp-reminder-delivery";
@@ -47,6 +48,7 @@ export const { GET, POST, PUT } = serve({
     generateMeetingInsights, // Generate AI insights
     handleTranscriptionReady, // Handle async transcription
     pollMeetingStatuses, // Cron: poll MeetingBaas for stuck meetings (webhook fallback)
+    sendMeetingWhatsAppSummary, // Delayed WhatsApp meeting summary (15 min after insights)
     // WhatsApp functions
     processComplexWhatsAppMessage, // Process complex WhatsApp messages via Inngest
     wahaSessionHealthCheck, // Cron: WAHA session health monitoring
