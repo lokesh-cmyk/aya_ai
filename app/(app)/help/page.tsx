@@ -38,6 +38,14 @@ import {
   BarChart3,
   Inbox,
   CheckCircle2,
+  Smartphone,
+  Globe,
+  CloudSun,
+  ListTodo,
+  StickyNote,
+  Bell,
+  BotMessageSquare,
+  ToggleRight,
 } from "lucide-react";
 
 const faqs = [
@@ -112,6 +120,102 @@ const quickGuides = [
     icon: Calendar,
     href: "#"
   }
+];
+
+const whatsappFeatures = [
+  {
+    title: "Web Search",
+    description: "Search the internet for current events, news, or any information",
+    icon: Globe,
+  },
+  {
+    title: "Weather",
+    description: "Get current weather and 3-day forecasts for any location",
+    icon: CloudSun,
+  },
+  {
+    title: "Email & Inbox",
+    description: "Check recent emails, search messages across all channels",
+    icon: Mail,
+  },
+  {
+    title: "Calendar & Meetings",
+    description: "View upcoming meetings, schedules, and meeting summaries",
+    icon: Calendar,
+  },
+  {
+    title: "Tasks & Projects",
+    description: "Check task status, project updates, and deadlines",
+    icon: ListTodo,
+  },
+  {
+    title: "Notes & Reminders",
+    description: "Save personal notes and set one-time or recurring reminders",
+    icon: StickyNote,
+  },
+  {
+    title: "Post-Meeting Summaries",
+    description: "Get executive summaries with action items after meetings end",
+    icon: FileText,
+  },
+  {
+    title: "Daily Standup Digest",
+    description: "Receive a morning digest with your day's overview at 8 AM",
+    icon: Bell,
+  },
+  {
+    title: "Slack & Integrations",
+    description: "Send Slack messages, check channels, and manage integrations",
+    icon: MessageSquare,
+  },
+  {
+    title: "General AI Chat",
+    description: "Ask anything — AYA responds in your language",
+    icon: BotMessageSquare,
+  },
+];
+
+const whatsappCommands = [
+  {
+    command: "enable meeting summaries",
+    description: "Turn on post-meeting WhatsApp summaries with action items",
+    alternates: "turn on meeting summaries, enable post-meeting summaries",
+  },
+  {
+    command: "disable meeting summaries",
+    description: "Turn off post-meeting WhatsApp summaries",
+    alternates: "turn off meeting summaries, stop meeting summaries",
+  },
+  {
+    command: "enable digest",
+    description: "Turn on daily standup digest at 8 AM your time",
+    alternates: "turn on digest, start daily digest, resume digest",
+  },
+  {
+    command: "disable digest",
+    description: "Pause the daily standup digest",
+    alternates: "turn off digest, stop digest, pause digest",
+  },
+  {
+    command: "save this: [your note]",
+    description: "Save a personal note you can search later",
+    alternates: "note this down, remember that...",
+  },
+  {
+    command: "remind me [task] at [time]",
+    description: "Set a reminder with WhatsApp pings (supports recurring)",
+    alternates: "set a reminder, alert me at...",
+  },
+  {
+    command: "list my notes",
+    description: "View your saved notes",
+    alternates: "show notes, search notes",
+  },
+  {
+    command: "list my reminders",
+    description: "View your active reminders",
+    alternates: "show reminders, my reminders",
+  },
 ];
 
 export default function HelpPage() {
@@ -223,6 +327,81 @@ export default function HelpPage() {
                 </div>
               </a>
             ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* WhatsApp AYA Agent */}
+      <Card className="border-green-200 bg-green-50/30">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Smartphone className="w-5 h-5 text-green-600" />
+            WhatsApp AYA Agent
+          </CardTitle>
+          <CardDescription>
+            Your AI assistant on WhatsApp — here&apos;s everything AYA can do and how to control it
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Features Grid */}
+          <div>
+            <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wider mb-3">
+              What AYA Can Do
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {whatsappFeatures.map((feature, index) => (
+                <div
+                  key={index}
+                  className="flex items-start gap-3 p-3 rounded-lg bg-white border border-green-100"
+                >
+                  <div className="p-1.5 rounded-md bg-green-100 shrink-0">
+                    <feature.icon className="w-4 h-4 text-green-600" />
+                  </div>
+                  <div className="min-w-0">
+                    <h4 className="text-sm font-medium text-gray-900">{feature.title}</h4>
+                    <p className="text-xs text-gray-500 mt-0.5">{feature.description}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Commands Table */}
+          <div>
+            <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wider mb-3 flex items-center gap-2">
+              <ToggleRight className="w-4 h-4" />
+              Quick Commands
+            </h3>
+            <p className="text-xs text-gray-500 mb-3">
+              Send these messages to AYA on WhatsApp to enable or disable features
+            </p>
+            <div className="space-y-2">
+              {whatsappCommands.map((cmd, index) => (
+                <div
+                  key={index}
+                  className="flex flex-col sm:flex-row sm:items-start gap-1 sm:gap-4 p-3 rounded-lg bg-white border border-green-100"
+                >
+                  <div className="shrink-0">
+                    <code className="text-sm font-mono font-medium text-green-700 bg-green-50 px-2 py-0.5 rounded">
+                      &quot;{cmd.command}&quot;
+                    </code>
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm text-gray-700">{cmd.description}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      Also works: {cmd.alternates}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Getting Started Note */}
+          <div className="p-4 rounded-lg bg-green-100/50 border border-green-200">
+            <p className="text-sm text-green-800">
+              <span className="font-semibold">Getting started:</span> Message AYA from your linked WhatsApp number. If you haven&apos;t linked yet, just send a message and AYA will ask for your account email to connect.
+            </p>
           </div>
         </CardContent>
       </Card>
