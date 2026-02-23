@@ -9,8 +9,9 @@ import {
   type Memory,
 } from "@/lib/mem0";
 import { getComposioSessionTools } from "@/lib/composio-tools";
+import { getSearchAndWeatherTools } from "@/lib/tools";
 import { formatForWhatsApp, splitMessage } from "./formatter";
-import { isDigestToggle } from "./classifier";
+import { isDigestToggle, isMeetingSummaryToggle } from "./classifier";
 import { getNotesAndReminderTools } from "./tools";
 import {
   sendText,
@@ -35,6 +36,7 @@ interface UserContext {
   teamId: string | null;
   timezone: string | null;
   whatsappDigestEnabled: boolean;
+  whatsappMeetingSummaryEnabled: boolean;
 }
 
 /**
@@ -63,6 +65,12 @@ export async function processMessage(
     const digestToggle = isDigestToggle(messageText);
     if (digestToggle.isToggle) {
       return await handleDigestToggle(user, phone, digestToggle.enable);
+    }
+
+    // Check for meeting summary opt-in/opt-out
+    const meetingSummaryToggle = isMeetingSummaryToggle(messageText);
+    if (meetingSummaryToggle.isToggle) {
+      return await handleMeetingSummaryToggle(user, phone, meetingSummaryToggle.enable);
     }
 
     // Get or create active conversation
@@ -99,12 +107,13 @@ export async function processMessage(
     // Build AI context (same as web chat)
     const userData = await loadUserContext(user.id, user.teamId);
 
-    // Load tools if complex path
-    let tools: any = {};
+    // Always load web search & weather tools (both simple + complex paths)
+    let tools: any = { ...getSearchAndWeatherTools() };
+
     if (includeTools) {
-      // Always add notes & reminders tools on complex path
+      // Add notes & reminders tools on complex path
       const customTools = getNotesAndReminderTools(user.id, user.timezone);
-      tools = { ...customTools };
+      tools = { ...tools, ...customTools };
 
       // Add Composio tools (external integrations)
       try {
@@ -210,6 +219,27 @@ async function handleDigestToggle(
   const message = enable
     ? "Daily standup digest has been *turned on*! You'll receive it every morning at 8 AM your time."
     : "Daily standup digest has been *paused*. You can turn it back on anytime by asking me!";
+
+  return { messages: [message], conversationId: conversation.id };
+}
+
+/**
+ * Handle meeting summary opt-in/opt-out
+ */
+async function handleMeetingSummaryToggle(
+  user: UserContext,
+  phone: string,
+  enable: boolean
+): Promise<ProcessResult> {
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { whatsappMeetingSummaryEnabled: enable },
+  });
+
+  const conversation = await getOrCreateConversation(user.id);
+  const message = enable
+    ? "Post-meeting summaries have been *turned on*! You'll receive a summary with action items on WhatsApp 15 minutes after each meeting ends."
+    : "Post-meeting summaries have been *turned off*. You can turn them back on anytime by asking me!";
 
   return { messages: [message], conversationId: conversation.id };
 }
@@ -395,6 +425,21 @@ function buildWhatsAppSystemPrompt(
 ): string {
   let prompt = `You are AYA, an AI assistant in the Unified Box platform. You are responding via WhatsApp.
 
+## About AYA & Unified Box
+
+AYA is the AI assistant built into Unified Box — an all-in-one business productivity platform. Here's what Unified Box offers:
+
+- *Unified Inbox* — All messages (Email, SMS, WhatsApp, Slack, Instagram DMs, Microsoft Teams) in one place
+- *AI Chat* — Conversational AI assistant on the web app with rich UI cards
+- *WhatsApp AYA (You!)* — On-the-go AI access via WhatsApp
+- *Project Management* — Spaces, task lists, tasks with priorities and assignees
+- *Meeting Bot* — AI meeting recording, transcription, and summaries (Google Meet, Zoom, Teams)
+- *Integrations* — Google Calendar, ClickUp, Instagram, LinkedIn, Microsoft Teams, Zoom, Slack, Gmail
+- *Web Search* — Search the internet for current information
+- *Weather* — Check weather and forecasts for any location
+
+When users ask "what can you do?" or "how does this work?", explain relevant features conversationally.
+
 ## WhatsApp Formatting Rules
 - Use *bold* for emphasis, _italic_ for secondary info
 - No markdown tables — use numbered lists instead
@@ -415,6 +460,8 @@ If they mix languages (Hinglish, Spanglish), match their style naturally.
 - When executing tools, briefly say what you're doing: "Checking your calendar..."
 - NEVER include [CONNECT_ACTION:...] markers or :::component{...}::: blocks — those are for the web UI only
 - If the user asks to stop/start daily standup digest, confirm you've done it
+- If the user asks to enable/disable post-meeting summaries, confirm you've done it
+- When users ask general questions about the platform, guide them helpfully
 
 ## Your Capabilities
 You have access to:
@@ -423,9 +470,24 @@ You have access to:
 - Recent meetings with AI-generated summaries
 - Team information
 - Long-term memories about this user
-- Connected integrations (Google Calendar, ClickUp, Slack, Instagram, LinkedIn)
+- Connected integrations (Google Calendar, ClickUp, Slack, Instagram, LinkedIn, Microsoft Teams, Zoom)
 - Personal notes (save, search, update, delete)
 - Reminders with WhatsApp pings (one-time and recurring)
+- Web search (search the internet for current events, news, facts, or any information)
+- Weather (get current weather and 3-day forecast for any location)
+
+## Web Search & Weather
+- When user asks to search the web, look something up, or asks about current events/news — use the web_search tool. Present results as a numbered list with title and snippet.
+- When user asks about weather — use the get_weather tool. Format nicely with emojis:
+  Example format:
+  *Tokyo, Japan* ☀️
+  Temperature: 28°C (feels like 31°C)
+  💧 Humidity: 65% | 💨 Wind: 15 km/h
+
+  _3-Day Forecast:_
+  1. Today: ☀️ 28°C / 20°C
+  2. Fri: ⛅ 25°C / 19°C
+  3. Sat: 🌧️ 22°C / 18°C
 
 ## Notes & Reminders
 - When user says "save this", "note this down", "remember that..." → use save_note tool
@@ -459,7 +521,8 @@ You have access to:
 - Active Projects: ${context.projects.length}
 - Recent Emails: ${context.recentEmails.length}
 - Recent Meetings: ${context.meetings?.length || 0}
-- Daily Digest: ${user.whatsappDigestEnabled ? "Enabled" : "Disabled"}`;
+- Daily Digest: ${user.whatsappDigestEnabled ? "Enabled" : "Disabled"}
+- Post-Meeting Summaries: ${user.whatsappMeetingSummaryEnabled ? "Enabled" : "Disabled"}`;
 
   if (context.projects.length > 0) {
     prompt += `\n\n### Projects:\n${context.projects.map((p: any) => `- ${p.name}: ${p.tasks.length} tasks`).join("\n")}`;

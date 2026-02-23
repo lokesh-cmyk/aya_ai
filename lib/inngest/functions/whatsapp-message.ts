@@ -30,6 +30,7 @@ export const processComplexWhatsAppMessage = inngest.createFunction(
       teamId,
       timezone,
       whatsappDigestEnabled,
+      whatsappMeetingSummaryEnabled,
     } = event.data;
 
     const chatId = toChatId(phone);
@@ -46,6 +47,7 @@ export const processComplexWhatsAppMessage = inngest.createFunction(
           teamId,
           timezone,
           whatsappDigestEnabled,
+          whatsappMeetingSummaryEnabled: whatsappMeetingSummaryEnabled ?? false,
         },
         phone,
         messageText,

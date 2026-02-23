@@ -22,8 +22,13 @@ const COMPLEX_KEYWORDS = [
   "stats", "statistics", "analytics", "report", "dashboard", "insights",
   // Instagram / LinkedIn
   "instagram", "linkedin", "social media", "post", "posts",
+  // Microsoft Teams
+  "teams", "microsoft teams", "teams chat", "teams channel",
+  // Zoom
+  "zoom", "zoom meeting", "webinar", "webinars", "zoom call",
   // Meetings
-  "transcript", "recording", "action items", "standup",
+  "transcript", "recording", "recordings", "action items", "standup",
+  "reschedule", "cancel meeting", "join link", "meeting link",
   // Notes & Reminders
   "note", "notes", "remind", "reminder", "reminders",
   "save this", "remember this", "note this",
@@ -39,6 +44,9 @@ const SIMPLE_PATTERNS = [
   // Digest opt-in/opt-out
   /\b(opt\s*out|opt\s*in|stop|resume|pause|disable|enable)\b.*\b(digest|standup|daily|morning)\b/i,
   /\b(digest|standup|daily|morning)\b.*\b(opt\s*out|opt\s*in|stop|resume|pause|disable|enable)\b/i,
+  // Meeting summary opt-in/opt-out
+  /\b(opt\s*out|opt\s*in|stop|resume|pause|disable|enable|turn\s*on|turn\s*off)\b.*\b(meeting\s*summar|post[- ]?meeting)\b/i,
+  /\b(meeting\s*summar|post[- ]?meeting)\b.*\b(opt\s*out|opt\s*in|stop|resume|pause|disable|enable|turn\s*on|turn\s*off)\b/i,
 ];
 
 export type MessageIntent = "simple" | "complex";
@@ -86,6 +94,33 @@ export function isDigestToggle(message: string): { isToggle: boolean; enable: bo
   const optInPatterns = [
     /\b(start|enable|resume|opt\s*in|turn\s*on)\b.*\b(digest|standup|daily|morning)\b/i,
     /\b(digest|standup|daily|morning)\b.*\b(start|enable|resume|opt\s*in|turn\s*on)\b/i,
+  ];
+
+  for (const pattern of optOutPatterns) {
+    if (pattern.test(lower)) return { isToggle: true, enable: false };
+  }
+  for (const pattern of optInPatterns) {
+    if (pattern.test(lower)) return { isToggle: true, enable: true };
+  }
+
+  return { isToggle: false, enable: false };
+}
+
+/**
+ * Check if a message is a meeting summary opt-out/opt-in request
+ */
+export function isMeetingSummaryToggle(message: string): { isToggle: boolean; enable: boolean } {
+  const lower = message.toLowerCase().trim();
+
+  const optOutPatterns = [
+    /\b(stop|disable|pause|opt\s*out|turn\s*off|no\s*more)\b.*\b(meeting\s*summar|post[- ]?meeting)\b/i,
+    /\b(meeting\s*summar|post[- ]?meeting)\b.*\b(stop|disable|pause|opt\s*out|turn\s*off|no\s*more)\b/i,
+    /\bdon'?t\s*send\b.*\b(meeting\s*summar|post[- ]?meeting)\b/i,
+  ];
+
+  const optInPatterns = [
+    /\b(start|enable|resume|opt\s*in|turn\s*on)\b.*\b(meeting\s*summar|post[- ]?meeting)\b/i,
+    /\b(meeting\s*summar|post[- ]?meeting)\b.*\b(start|enable|resume|opt\s*in|turn\s*on)\b/i,
   ];
 
   for (const pattern of optOutPatterns) {

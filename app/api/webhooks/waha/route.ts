@@ -155,6 +155,7 @@ async function handleIncomingMessage(
         teamId: user.teamId,
         timezone: user.timezone,
         whatsappDigestEnabled: user.whatsappDigestEnabled,
+        whatsappMeetingSummaryEnabled: user.whatsappMeetingSummaryEnabled,
       },
     });
   }

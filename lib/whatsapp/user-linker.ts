@@ -20,6 +20,7 @@ export async function findUserByPhone(phone: string) {
       teamId: true,
       timezone: true,
       whatsappDigestEnabled: true,
+      whatsappMeetingSummaryEnabled: true,
     },
   });
 }
