@@ -779,6 +779,17 @@ If there are no items for a category (e.g., no action items), use an empty array
       }
     });
 
+    // Trigger delayed WhatsApp summary delivery
+    await step.run("trigger-whatsapp-summary", async () => {
+      await inngest.send({
+        name: "meeting/insights.ready",
+        data: {
+          meetingId,
+          userId: meeting.userId,
+        },
+      });
+    });
+
     console.log(`[meeting-insights] Insights generated for meeting ${meetingId}`);
 
     return { success: true, meetingId };
