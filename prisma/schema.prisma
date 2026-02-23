@@ -52,6 +52,7 @@ model User {
   whatsappPhone       String?   @unique
   whatsappLinkedAt    DateTime?
   whatsappDigestEnabled Boolean @default(true)
+  whatsappMeetingSummaryEnabled Boolean @default(false)
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
   
@@ -646,6 +647,7 @@ model Meeting {
   // Metadata
   errorMessage      String?         // Error details if failed
   metadata          Json?           // Additional platform-specific data
+  whatsappSummarySentAt DateTime?   // Prevents duplicate WhatsApp summary sends
   createdAt         DateTime        @default(now())
   updatedAt         DateTime        @updatedAt
 
