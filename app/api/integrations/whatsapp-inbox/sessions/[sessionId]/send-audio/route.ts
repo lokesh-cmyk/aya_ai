@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/app/generated/prisma";
+import { prisma } from "@/lib/prisma";
 
 const BRIDGE_URL = process.env.WHATSAPP_BRIDGE_URL || "http://localhost:3001";
 const BRIDGE_API_KEY = process.env.WHATSAPP_BRIDGE_API_KEY || "";

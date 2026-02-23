@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/app/generated/prisma";
+import { prisma } from "@/lib/prisma";
 import { bridgeRequest } from "@/lib/whatsapp-bridge";
 
 // POST: Request pairing code
