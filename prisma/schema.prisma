@@ -97,6 +97,9 @@ model User {
   userNotes             UserNote[]
   reminders             Reminder[]
 
+  // Feedback
+  feedbacks             Feedback[]
+
   @@index([teamId])
   @@index([email])
 }
@@ -856,4 +859,21 @@ model WhatsAppAuth {
   creds     Json     // Baileys auth credentials blob
   keys      Json     // Baileys signal keys blob
   updatedAt DateTime @updatedAt
+}
+
+model Feedback {
+  id        String   @id @default(cuid())
+  type      String   // bug, feature, general, question
+  subject   String
+  message   String
+  status    String   @default("open") // open, reviewed, resolved
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([type])
+  @@index([status])
 }

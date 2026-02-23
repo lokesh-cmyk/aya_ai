@@ -234,14 +234,31 @@ export default function HelpPage() {
 
     setIsSubmitting(true);
 
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    try {
+      const res = await fetch("/api/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: feedbackType,
+          subject,
+          message,
+        }),
+      });
 
-    toast.success("Feedback submitted successfully! We'll get back to you soon.");
-    setFeedbackType("");
-    setSubject("");
-    setMessage("");
-    setIsSubmitting(false);
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to submit feedback");
+      }
+
+      toast.success("Feedback submitted successfully! We'll get back to you soon.");
+      setFeedbackType("");
+      setSubject("");
+      setMessage("");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to submit feedback. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -532,7 +549,7 @@ export default function HelpPage() {
           </a>
         </p>
         <p className="text-xs text-gray-400 mt-2">
-          AYA AI • Version 1.0.0 • Response time: Usually within 24 hours
+          AYA AI • Response time: Usually within 24 hours
         </p>
       </div>
     </div>
