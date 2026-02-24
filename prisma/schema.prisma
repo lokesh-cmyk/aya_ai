@@ -1044,6 +1044,7 @@ model ChangeRequest {
   @@index([vendorId])
   @@index([status])
   @@index([createdById])
+  @@index([approvedById])
   @@index([priority])
 }
 
