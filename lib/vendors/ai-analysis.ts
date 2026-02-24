@@ -114,7 +114,7 @@ Provide your analysis as a JSON object with exactly these fields:
 }
 
 Be specific and actionable. Reference the SLA data and contract details in your analysis where relevant.`,
-      maxTokens: 1024,
+      maxOutputTokens: 1024,
     });
 
     const parsed = JSON.parse(text.trim());
@@ -235,7 +235,7 @@ Provide your response as a JSON object with a "suggestions" array containing 3-5
 }
 
 Consider the existing playbooks to avoid duplication. Focus on strategies that are specific to the risk category (${riskCategory}) and severity level (${severityLabel}). Prioritize the most impactful strategies first.`,
-      maxTokens: 1536,
+      maxOutputTokens: 1536,
     });
 
     const parsed = JSON.parse(text.trim());

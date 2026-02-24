@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react";
 import { useParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { VendorDetailView } from "@/components/vendors/VendorDetailView";
@@ -56,6 +57,14 @@ function DetailSkeleton() {
 }
 
 export default function VendorDetailPage() {
+  return (
+    <Suspense fallback={<DetailSkeleton />}>
+      <VendorDetailContent />
+    </Suspense>
+  );
+}
+
+function VendorDetailContent() {
   const params = useParams();
   const id = params?.id as string;
 

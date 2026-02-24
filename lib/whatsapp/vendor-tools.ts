@@ -408,7 +408,7 @@ export function getVendorTrackerTools(userId: string, teamId: string) {
         const vendor = await prisma.vendor.create({
           data: {
             name,
-            category: category || null,
+            category: category || "Uncategorized",
             website: website || null,
             description: description || null,
             status: "ONBOARDING",
@@ -435,7 +435,7 @@ export function getVendorTrackerTools(userId: string, teamId: string) {
         title: z.string().describe("Short title describing the change request"),
         description: z.string().optional().describe("Detailed description of the requested change"),
         priority: z
-          .enum(["LOW", "NORMAL", "HIGH", "CRITICAL"])
+          .enum(["LOW", "NORMAL", "HIGH", "URGENT"])
           .optional()
           .describe("Priority level. Default: NORMAL"),
       }),

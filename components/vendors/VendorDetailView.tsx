@@ -502,10 +502,11 @@ export function VendorDetailView({ vendor }: VendorDetailViewProps) {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="contact-email">Email</Label>
+              <Label htmlFor="contact-email">Email <span className="text-red-500">*</span></Label>
               <Input
                 id="contact-email"
                 type="email"
+                required
                 placeholder="email@example.com"
                 value={contactForm.email}
                 onChange={(e) =>

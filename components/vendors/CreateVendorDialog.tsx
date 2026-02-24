@@ -337,9 +337,10 @@ export function CreateVendorDialog({
                     />
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-xs text-gray-600">Email</Label>
+                    <Label className="text-xs text-gray-600">Email <span className="text-red-500">*</span></Label>
                     <Input
                       type="email"
+                      required
                       placeholder="jane@example.com"
                       value={contact.email}
                       onChange={(e) =>

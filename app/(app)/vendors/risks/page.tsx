@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, Suspense } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -144,6 +144,14 @@ function PageSkeleton() {
 }
 
 export default function RiskHeatmapPage() {
+  return (
+    <Suspense>
+      <RiskHeatmapContent />
+    </Suspense>
+  );
+}
+
+function RiskHeatmapContent() {
   const searchParams = useSearchParams();
   const urlVendorId = searchParams.get("vendorId") || "";
 

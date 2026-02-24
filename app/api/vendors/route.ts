@@ -6,6 +6,7 @@ import { prisma } from '@/lib/prisma';
 import { getSessionCookie } from '@/lib/auth';
 import { z } from 'zod';
 import { createTeamNotification } from '@/lib/notifications';
+import { syncVendorContact } from '@/lib/vendors/sync-vendor-contact';
 
 const createVendorSchema = z.object({
   name: z.string().min(1, 'Vendor name is required'),
@@ -29,7 +30,7 @@ const createVendorSchema = z.object({
     .array(
       z.object({
         name: z.string().min(1),
-        email: z.string().email().optional().or(z.literal('')),
+        email: z.string().email('Email is required for vendor contacts'),
         phone: z.string().optional(),
         role: z.string().optional(),
         isPrimary: z.boolean().optional(),
@@ -270,6 +271,24 @@ export async function POST(request: NextRequest) {
         slas: true,
       },
     });
+
+    // Sync vendor contacts to Contact table so their emails appear in unified inbox
+    if (vendor.contacts.length > 0) {
+      await Promise.all(
+        vendor.contacts
+          .filter((c) => c.email)
+          .map((c) =>
+            syncVendorContact({
+              name: c.name,
+              email: c.email!,
+              phone: c.phone,
+              vendorId: vendor.id,
+              vendorContactId: c.id,
+              teamId: user.teamId!,
+            })
+          )
+      );
+    }
 
     // Send team notification
     try {

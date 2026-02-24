@@ -5,14 +5,11 @@ import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
 import { getSessionCookie } from '@/lib/auth';
 import { z } from 'zod';
+import { syncVendorContact } from '@/lib/vendors/sync-vendor-contact';
 
 const createContactSchema = z.object({
   name: z.string().min(1, 'Name is required'),
-  email: z
-    .string()
-    .email('Invalid email format')
-    .optional()
-    .or(z.literal('')),
+  email: z.string().email('Email is required for vendor contacts'),
   phone: z.string().optional(),
   role: z.string().optional(),
   isPrimary: z.boolean().optional(),
@@ -148,12 +145,22 @@ export async function POST(
     const contact = await prisma.vendorContact.create({
       data: {
         name: validated.name,
-        email: validated.email || null,
+        email: validated.email,
         phone: validated.phone || null,
         role: validated.role || null,
         isPrimary: validated.isPrimary ?? false,
         vendorId: id,
       },
+    });
+
+    // Sync to Contact table so vendor emails appear in unified inbox
+    await syncVendorContact({
+      name: validated.name,
+      email: validated.email,
+      phone: validated.phone || null,
+      vendorId: id,
+      vendorContactId: contact.id,
+      teamId: vendor.teamId,
     });
 
     return NextResponse.json({ contact }, { status: 201 });

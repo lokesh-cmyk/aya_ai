@@ -95,7 +95,7 @@ Classification guidelines:
 - "general": Regular communication, status updates, meeting requests, or other non-actionable messages
 
 Be conservative — only mark as change_request if there is a clear proposed or announced change.`,
-      maxTokens: 512,
+      maxOutputTokens: 512,
     });
 
     const parsed = JSON.parse(text.trim());

@@ -10,7 +10,9 @@ export default function AppLayout({
   return (
     <>
       <AuthCheck />
-      <AppLayoutClient>{children}</AppLayoutClient>
+      <Suspense>
+        <AppLayoutClient>{children}</AppLayoutClient>
+      </Suspense>
     </>
   );
 }

@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
             description: playbook.description,
             category: playbook.category,
             triggerCondition: playbook.triggerCondition,
-            steps: playbook.steps as unknown as Record<string, unknown>[],
+            steps: playbook.steps as any,
             isSystemProvided: playbook.isSystemProvided,
             isActive: playbook.isActive,
             teamId,
