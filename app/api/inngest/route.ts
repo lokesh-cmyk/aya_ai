@@ -25,6 +25,14 @@ import { processComplexWhatsAppMessage } from "@/lib/inngest/functions/whatsapp-
 import { wahaSessionHealthCheck } from "@/lib/inngest/functions/whatsapp-session-health";
 import { whatsappReminderDelivery } from "@/lib/inngest/functions/whatsapp-reminder-delivery";
 import { syncInstagramDMs } from "@/lib/inngest/functions/instagram-dm-sync";
+import {
+  analyzeChangeRequest,
+  generateRiskMitigations,
+} from "@/lib/inngest/functions/vendor-change-analysis";
+import {
+  vendorRenewalCheck,
+  vendorSLACheck,
+} from "@/lib/inngest/functions/vendor-monitoring";
 
 // Create an API that serves Inngest functions
 export const { GET, POST, PUT } = serve({
@@ -55,5 +63,8 @@ export const { GET, POST, PUT } = serve({
     whatsappReminderDelivery, // Cron: WhatsApp reminder pings (every minute)
     // Instagram DM sync
     syncInstagramDMs, // Cron: sync Instagram DMs to Redis cache
+    // Vendor tracker AI analysis
+    analyzeChangeRequest, // AI impact analysis for vendor change requests
+    generateRiskMitigations, // AI mitigation suggestions for vendor risks
   ],
 });
