@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
 
     const apiKey = process.env.NEXT_PUBLIC_COMPOSIO_API_KEY;
     if (!apiKey) {
-      return NextResponse.json({ googleCalendar: false, clickUp: false, instagram: [], linkedin: false, microsoftTeams: false });
+      return NextResponse.json({ googleCalendar: false, clickUp: false, instagram: [], linkedin: false, microsoftTeams: false, zoom: false });
     }
 
     const composio = getComposio();
@@ -31,6 +31,7 @@ export async function GET(request: NextRequest) {
         COMPOSIO_APPS.instagram.slug,
         COMPOSIO_APPS.linkedin.slug,
         COMPOSIO_APPS.microsoft_teams.slug,
+        COMPOSIO_APPS.zoom.slug,
       ],
     });
 
@@ -59,9 +60,10 @@ export async function GET(request: NextRequest) {
       instagram: instagramAccounts,
       linkedin: otherSlugs.has(COMPOSIO_APPS.linkedin.slug.toLowerCase()),
       microsoftTeams: otherSlugs.has(COMPOSIO_APPS.microsoft_teams.slug.toLowerCase()),
+      zoom: otherSlugs.has(COMPOSIO_APPS.zoom.slug.toLowerCase()),
     });
   } catch (e) {
     console.warn("[composio/status]", e);
-    return NextResponse.json({ googleCalendar: false, clickUp: false, instagram: [], linkedin: false, microsoftTeams: false });
+    return NextResponse.json({ googleCalendar: false, clickUp: false, instagram: [], linkedin: false, microsoftTeams: false, zoom: false });
   }
 }

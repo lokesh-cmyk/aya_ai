@@ -63,7 +63,7 @@ export const ToolCallCard = memo(function ToolCallCard({
         onClick={() => canExpand && setIsExpanded(!isExpanded)}
         className={cn(
           'w-full flex items-center gap-2 px-3 py-2 text-left transition-colors',
-          canExpand && 'hover:bg-black/[0.03] cursor-pointer',
+          canExpand && 'hover:bg-black/3 cursor-pointer',
           !canExpand && 'cursor-default',
         )}
       >

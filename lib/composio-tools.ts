@@ -1,5 +1,5 @@
 /**
- * Composio integration for AI chat: Google Calendar, ClickUp, Instagram, LinkedIn, Microsoft Teams.
+ * Composio integration for AI chat: Google Calendar, ClickUp, Instagram, LinkedIn, Microsoft Teams, Zoom.
  * Uses in-chat authentication: COMPOSIO_MANAGE_CONNECTIONS returns Connect Link URL
  * when the user needs to authorize an app.
  */
@@ -17,6 +17,8 @@ const toolkitSlugLinkedin = process.env.COMPOSIO_TOOLKIT_SLUG_LINKEDIN || "linke
 const authConfigIdLinkedin = process.env.COMPOSIO_AUTH_CONFIG_ID_LINKEDIN || "";
 const toolkitSlugTeams = process.env.COMPOSIO_TOOLKIT_SLUG_TEAMS || "microsoft_teams";
 const authConfigIdTeams = process.env.COMPOSIO_AUTH_CONFIG_ID_TEAMS || "";
+const toolkitSlugZoom = process.env.COMPOSIO_TOOLKIT_SLUG_ZOOM || "zoom";
+const authConfigIdZoom = process.env.COMPOSIO_AUTH_CONFIG_ID_ZOOM || "";
 
 /** Composio client (with VercelProvider for tool router). Also used for connectedAccounts.list/link on server. */
 export function getComposio(): Composio<InstanceType<typeof VercelProvider>> {
@@ -70,6 +72,11 @@ export const COMPOSIO_APPS = {
     authConfigId: process.env.COMPOSIO_AUTH_CONFIG_ID_TEAMS || "",
     name: "Microsoft Teams",
   },
+  zoom: {
+    slug: process.env.COMPOSIO_TOOLKIT_SLUG_ZOOM || "zoom",
+    authConfigId: process.env.COMPOSIO_AUTH_CONFIG_ID_ZOOM || "",
+    name: "Zoom",
+  },
 } as const;
 
 /**
@@ -104,6 +111,7 @@ export function getAppDisplayName(toolkitSlug: string | undefined): string {
   if (slug === "instagram") return "Instagram";
   if (slug === "linkedin") return "LinkedIn";
   if (slug === "microsoft_teams") return "Microsoft Teams";
+  if (slug === "zoom") return "Zoom";
   return slug.charAt(0).toUpperCase() + slug.slice(1);
 }
 
@@ -118,6 +126,7 @@ export async function getComposioSessionTools(userId: string): Promise<ComposioS
   if (authConfigIdInstagram) toolkits.push(toolkitSlugInstagram);
   if (authConfigIdLinkedin) toolkits.push(toolkitSlugLinkedin);
   if (authConfigIdTeams) toolkits.push(toolkitSlugTeams);
+  if (authConfigIdZoom) toolkits.push(toolkitSlugZoom);
 
   const config: Parameters<Composio["create"]>[1] = {
     toolkits,
@@ -132,6 +141,7 @@ export async function getComposioSessionTools(userId: string): Promise<ComposioS
   if (authConfigIdInstagram) authConfigs[toolkitSlugInstagram] = authConfigIdInstagram;
   if (authConfigIdLinkedin) authConfigs[toolkitSlugLinkedin] = authConfigIdLinkedin;
   if (authConfigIdTeams) authConfigs[toolkitSlugTeams] = authConfigIdTeams;
+  if (authConfigIdZoom) authConfigs[toolkitSlugZoom] = authConfigIdZoom;
   if (Object.keys(authConfigs).length) config.authConfigs = authConfigs;
 
   const session = await composio.create(userId, config);

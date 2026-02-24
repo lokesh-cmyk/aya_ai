@@ -87,6 +87,31 @@ const TOOL_DISPLAY_NAMES: Record<string, string> = {
   MICROSOFT_TEAMS_UPDATE_CHANNEL_MESSAGE: "Update Channel Message",
   MICROSOFT_TEAMS_UPDATE_CHAT_MESSAGE: "Update Chat Message",
   MICROSOFT_TEAMS_UPDATE_TEAM: "Update Team Settings",
+
+  // Zoom
+  ZOOM_ADD_A_MEETING_REGISTRANT: "Add Meeting Registrant",
+  ZOOM_ADD_A_WEBINAR_REGISTRANT: "Add Webinar Registrant",
+  ZOOM_CREATE_A_MEETING: "Create Meeting",
+  ZOOM_DELETE_A_MEETING: "Delete Meeting",
+  ZOOM_DELETE_MEETING_RECORDINGS: "Delete Meeting Recordings",
+  ZOOM_GET_A_MEETING: "Get Meeting Details",
+  ZOOM_GET_A_MEETING_SUMMARY: "Get Meeting Summary",
+  ZOOM_GET_A_WEBINAR: "Get Webinar Details",
+  ZOOM_GET_DAILY_USAGE_REPORT: "Get Daily Usage Report",
+  ZOOM_GET_MEETING_RECORDINGS: "Get Meeting Recordings",
+  ZOOM_GET_PAST_MEETING_PARTICIPANTS: "Get Past Meeting Participants",
+  ZOOM_GET_USER: "Get User Profile",
+  ZOOM_LIST_ALL_RECORDINGS: "List All Recordings",
+  ZOOM_LIST_ARCHIVED_FILES: "List Archived Files",
+  ZOOM_LIST_DEVICES: "List Devices",
+  ZOOM_LIST_MEETINGS: "List Meetings",
+  ZOOM_LIST_WEBINAR_PARTICIPANTS: "List Webinar Participants",
+  ZOOM_LIST_WEBINARS: "List Webinars",
+  ZOOM_UPDATE_A_MEETING: "Update Meeting",
+
+  // Web Search & Weather
+  web_search: "Web Search",
+  get_weather: "Get Weather",
 };
 
 /**
@@ -139,6 +164,13 @@ function itemLabelForTool(toolName: string): string {
   if (lower.includes("meeting")) return "meetings";
   if (lower.includes("template")) return "templates";
   if (lower.includes("repl")) return "replies";
+  if (lower.includes("recording")) return "recordings";
+  if (lower.includes("webinar")) return "webinars";
+  if (lower.includes("device")) return "devices";
+  if (lower.includes("participant")) return "participants";
+  if (lower.includes("registrant")) return "registrants";
+  if (lower.includes("search")) return "results";
+  if (lower.includes("weather")) return "weather data";
   if (lower.includes("tool")) return "tools";
   return "items";
 }

@@ -12,6 +12,7 @@ import {
 } from '@/lib/mem0';
 import { COMPOSIO_APPS, getComposio, getComposioSessionTools, getIntegrationsCallbackUrl } from '@/lib/composio-tools';
 import { getToolDisplayName, summarizeToolResult } from '@/lib/tool-display-names';
+import { getSearchAndWeatherTools } from '@/lib/tools';
 
 export type ConnectAction = { connectLink: string; connectAppName: string };
 
@@ -85,6 +86,20 @@ const AVAILABLE_INTEGRATIONS: Record<string, IntegrationInfo> = {
     settingsPath: '/settings/integrations',
     composioApp: 'microsoft_teams',
   },
+  zoom: {
+    name: 'Zoom',
+    description: 'Video conferencing, meetings, webinars, and recordings',
+    features: [
+      'Create, update, and delete meetings',
+      'Get meeting details and summaries',
+      'List and manage recordings',
+      'Manage webinars and registrants',
+      'View past meeting participants',
+      'Get usage reports',
+    ],
+    settingsPath: '/settings/integrations',
+    composioApp: 'zoom',
+  },
 };
 
 // Map model names to Claude model IDs
@@ -132,6 +147,7 @@ async function getConnectedIntegrations(userId: string, teamId?: string | null):
           COMPOSIO_APPS.instagram.slug,
           COMPOSIO_APPS.linkedin.slug,
           COMPOSIO_APPS.microsoft_teams.slug,
+          COMPOSIO_APPS.zoom.slug,
         ],
       });
       const items = (list as { items?: Array<{ toolkit?: { slug?: string }; toolkitSlug?: string }> }).items ?? [];
@@ -403,6 +419,10 @@ export async function POST(request: NextRequest) {
       console.warn('[ai-chat/stream] Failed to load Composio tools:', e);
       // Continue without tools - graceful degradation
     }
+
+    // Load web search & weather tools (always available, no OAuth needed)
+    const searchWeatherTools = getSearchAndWeatherTools();
+    composioTools = { ...composioTools, ...searchWeatherTools } as import('ai').ToolSet;
 
     // Get connected integrations
     const integrations = await getConnectedIntegrations(session.user.id, user?.teamId);
@@ -680,6 +700,21 @@ function buildSystemPrompt(
 ): string {
   let prompt = `You are AYA, an AI assistant in the Unified Box platform. You help users with project management, communication, meetings, and productivity across their connected services.
 
+## About AYA & Unified Box
+
+AYA (your name) is the AI assistant built into Unified Box — an all-in-one business productivity platform. Here's what Unified Box offers:
+
+- **Unified Inbox** — All messages (Email, SMS, WhatsApp, Slack, Instagram DMs, Microsoft Teams) in one place
+- **AI Chat (You!)** — Conversational AI assistant with access to all integrated tools and services
+- **Project Management** — Spaces, task lists, tasks with priorities, statuses, and assignees
+- **Meeting Bot** — AI-powered meeting recording, transcription, summaries, and action items (supports Google Meet, Zoom, and Microsoft Teams)
+- **Integrations** — Google Calendar, ClickUp, Instagram, LinkedIn, Microsoft Teams, Zoom, Slack, Gmail, and more via Settings > Integrations
+- **WhatsApp AYA** — Users can also chat with you on WhatsApp for on-the-go access
+- **Web Search** — You can search the internet for current information
+- **Weather** — You can check weather and forecasts for any location
+
+When users ask about the platform, guide them naturally. If they ask "what can you do?" or "how does this work?", explain the relevant features conversationally.
+
 ## Your Capabilities
 
 You have access to:
@@ -688,6 +723,8 @@ You have access to:
 - Recent meetings with AI-generated summaries, action items, and key topics
 - Team information and collaboration features
 - Long-term memories about this user's preferences and past interactions
+- Web search (search the internet for current events, news, facts, or any information)
+- Weather (get current weather and 3-day forecast for any location)
 
 ## Available Integrations
 
@@ -746,6 +783,23 @@ Rules:
 - If a tool call fails, briefly mention it and suggest reconnecting
 - NEVER search for the same tools twice — remember what tools are available after the first search
 
+## Web Search & Weather
+
+You have built-in web_search and get_weather tools (no OAuth connection needed):
+
+- **Web Search:** When users ask to search the web, look something up, or ask about current events/news/facts, use the web_search tool. Present results as a numbered list with **title**, snippet, and [link](url).
+- **Weather:** When users ask about weather, temperature, or conditions for any location, use the get_weather tool. ALWAYS present the result using the weather_card component block — pass the tool result directly as JSON inside the component block.
+
+## Conversational Guidance
+
+You are also a helpful conversational assistant. When users ask general questions like:
+- "What can you do?" — explain your capabilities (integrations, web search, weather, tasks, meetings, etc.)
+- "How do I connect Zoom?" — guide them to Settings > Integrations
+- "What is Unified Box?" — explain the platform features
+- "Help me get started" — walk them through key features step by step
+
+Be friendly, concise, and proactive in suggesting features they might find useful.
+
 ## Rich UI Formatting
 
 When presenting structured data (lists of tasks, events, emails, meetings, posts), use component blocks for rich rendering in the chat UI. Wrap structured data in this format:
@@ -777,6 +831,10 @@ Use for a meeting with insights. Object:
 ### social_post
 Use when presenting social media posts. Each object:
 {"platform": "instagram|linkedin", "content": "string", "date": "ISO datetime", "likes": "number or null", "comments": "number or null"}
+
+### weather_card
+Use when presenting weather data. Single object:
+{"location": "string", "temp_c": "number", "condition": "string", "condition_icon": "URL string", "feelslike_c": "number", "humidity": "number", "wind_kph": "number", "forecast": [{"date": "YYYY-MM-DD", "day": "short weekday", "maxtemp_c": "number", "mintemp_c": "number", "condition": "string", "condition_icon": "URL string"}]}
 
 Rules for component blocks:
 - Always include a brief text summary before or after the component block for context

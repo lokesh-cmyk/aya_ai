@@ -228,18 +228,97 @@ volumes:
 
 ### Cloud Deployment Notes
 
-**DigitalOcean App Platform / Railway / Render:**
-- Deploy as a standalone service pointing to the `services/whatsapp-bridge` directory
-- Set build command: `npm install && npx prisma generate && npm run build`
-- Set run command: `node dist/index.js`
-- Ensure Redis add-on supports native connections (not HTTP-only like Upstash)
-- The WebSocket endpoint (`/ws`) requires the platform to support WebSocket upgrades
-
 **Important considerations:**
 - This service maintains **persistent WebSocket connections** to WhatsApp servers, so it must run on infrastructure that supports long-lived processes (not serverless/Lambda)
 - Sessions are restored automatically on service restart from the database
 - A single instance can handle ~300 concurrent sessions comfortably
 - For horizontal scaling, use sticky sessions — each WhatsApp connection must stay on the same instance
+- Ensure Redis provider supports native connections (not HTTP-only like Upstash)
+- The WebSocket endpoint (`/ws`) requires the platform to support WebSocket upgrades
+
+### DigitalOcean App Platform (Step-by-Step)
+
+#### Step 1: Push your code to GitHub
+
+Make sure the `services/whatsapp-bridge` directory is committed and pushed to your GitHub repo.
+
+#### Step 2: Create a new App on DigitalOcean
+
+1. Go to **DigitalOcean Dashboard** → **App Platform** → **Create App**
+2. Select your GitHub repository as the source
+3. Set the **Source Directory** to `services/whatsapp-bridge`
+4. Select component type: **Web Service** (supports HTTP + WebSocket)
+
+#### Step 3: Configure build & run commands
+
+| Setting | Value |
+|---|---|
+| **Build Command** | `npm install && npx prisma generate && npm run build` |
+| **Run Command** | `npm start` |
+
+> `npm start` runs `node dist/index.js` as defined in `package.json`.
+
+#### Step 4: Set environment variables
+
+In the App Platform dashboard, add these env vars:
+
+| Variable | Value |
+|---|---|
+| `DATABASE_URL` | Your PostgreSQL connection string (same as main app) |
+| `REDIS_URL` | Your Redis Cloud URL (e.g. `redis://default:xxx@redis-xxxxx.cloud.redislabs.com:port`) |
+| `WHATSAPP_BRIDGE_API_KEY` | Your generated shared secret (must match main app) |
+| `WHATSAPP_BRIDGE_PORT` | `8080` (DigitalOcean App Platform expects port `8080` by default) |
+| `MAX_SESSIONS_PER_USER` | `3` |
+
+> **Why port `8080`?** DigitalOcean App Platform routes external traffic to port `8080` internally. Set `WHATSAPP_BRIDGE_PORT=8080` so the Express server listens on the right port.
+
+#### Step 5: Set the HTTP port
+
+In the App settings, set the **HTTP Port** to `8080` to match `WHATSAPP_BRIDGE_PORT`.
+
+#### Step 6: Deploy
+
+Click **Create Resources** / **Deploy**. DigitalOcean will build and start your service. Once deployed, you'll get a URL like:
+
+```
+https://whatsapp-bridge-xxxxx.ondigitalocean.app
+```
+
+#### Step 7: Verify the deployment
+
+```bash
+curl https://whatsapp-bridge-xxxxx.ondigitalocean.app/health
+# {"status":"ok","activeSessions":0}
+```
+
+#### Step 8: Update your main app environment variables
+
+Add/update these in your Vercel project settings (or `.env` / `.env.local`):
+
+```env
+WHATSAPP_BRIDGE_URL=https://whatsapp-bridge-xxxxx.ondigitalocean.app
+WHATSAPP_BRIDGE_API_KEY=<your-shared-secret>
+NEXT_PUBLIC_WHATSAPP_BRIDGE_WS_URL=wss://whatsapp-bridge-xxxxx.ondigitalocean.app/ws?apiKey=<your-shared-secret>
+```
+
+> Replace `whatsapp-bridge-xxxxx.ondigitalocean.app` with your actual deployed URL.
+
+#### DigitalOcean Instance Size Recommendation
+
+| Plan | Sessions | Use Case |
+|---|---|---|
+| **Basic ($5/mo)** | Up to ~50 | Development / testing |
+| **Basic ($12/mo)** | Up to ~150 | Small production use |
+| **Pro ($25/mo)** | Up to ~300 | Production with multiple users |
+
+### Railway / Render
+
+Same general approach as DigitalOcean:
+- Deploy as a standalone service pointing to the `services/whatsapp-bridge` directory
+- Set build command: `npm install && npx prisma generate && npm run build`
+- Set run command: `node dist/index.js`
+- Set the same environment variables listed above
+- Both platforms support WebSocket upgrades natively
 
 ### Reverse Proxy (Nginx)
 

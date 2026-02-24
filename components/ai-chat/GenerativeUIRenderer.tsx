@@ -8,6 +8,7 @@ import {
   EmailSummaryCard,
   MeetingSummaryCard,
   SocialPostCard,
+  WeatherCard,
 } from './generative-ui';
 
 interface GenerativeUIRendererProps {
@@ -85,6 +86,8 @@ function renderComponent(componentType: string, data: unknown): React.ReactNode 
       return <MeetingSummaryCard data={data as any} />;
     case 'social_post':
       return <SocialPostCard data={data as any} />;
+    case 'weather_card':
+      return <WeatherCard data={data as any} />;
     default:
       return (
         <pre className="text-xs bg-gray-100 rounded p-2 overflow-x-auto">
