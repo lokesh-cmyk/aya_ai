@@ -100,6 +100,12 @@ model User {
   // Feedback
   feedbacks             Feedback[]
 
+  // Vendor relations
+  createdVendors         Vendor[]         @relation("VendorCreator")
+  createdChangeRequests  ChangeRequest[]  @relation("ChangeRequestCreator")
+  approvedChangeRequests ChangeRequest[]  @relation("ChangeRequestApprover")
+  createdRisks           Risk[]           @relation("RiskCreator")
+
   @@index([teamId])
   @@index([email])
 }
@@ -116,6 +122,8 @@ model Team {
   spaces    Space[]
   chats     TeamChat[]
   meetings  Meeting[]
+  vendors   Vendor[]
+  playbooks Playbook[]
 }
 
 model TeamInvite {
@@ -876,4 +884,214 @@ model Feedback {
   @@index([userId])
   @@index([type])
   @@index([status])
+}
+
+// ============================================
+// Vendor Tracker Models
+// ============================================
+
+enum VendorStatus {
+  ONBOARDING
+  ACTIVE
+  INACTIVE
+  OFFBOARDING
+}
+
+enum RenewalType {
+  AUTO
+  MANUAL
+}
+
+enum BillingCycle {
+  MONTHLY
+  QUARTERLY
+  ANNUAL
+}
+
+enum SLAStatus {
+  MET
+  AT_RISK
+  BREACHED
+}
+
+enum ChangeRequestStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  IMPLEMENTED
+}
+
+enum ChangeRequestPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum RiskCategory {
+  SLA_BREACH
+  CONTRACT
+  DELIVERY
+  FINANCIAL
+  OPERATIONAL
+  SECURITY
+}
+
+enum RiskStatus {
+  OPEN
+  MITIGATING
+  RESOLVED
+  ACCEPTED
+}
+
+model Vendor {
+  id              String        @id @default(cuid())
+  name            String
+  category        String
+  status          VendorStatus  @default(ONBOARDING)
+  website         String?
+  description     String?
+  contractStart   DateTime?
+  contractEnd     DateTime?
+  renewalDate     DateTime?
+  renewalType     RenewalType   @default(MANUAL)
+  billingCycle    BillingCycle  @default(MONTHLY)
+  contractValue   Float?
+  tags            String[]
+  customFields    Json?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  teamId          String
+  team            Team          @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  createdById     String
+  createdBy       User          @relation("VendorCreator", fields: [createdById], references: [id])
+
+  contacts        VendorContact[]
+  slas            SLA[]
+  changeRequests  ChangeRequest[]
+  risks           Risk[]
+
+  @@index([teamId])
+  @@index([status])
+  @@index([renewalDate])
+  @@index([createdById])
+}
+
+model VendorContact {
+  id          String    @id @default(cuid())
+  name        String
+  email       String?
+  phone       String?
+  role        String?
+  isPrimary   Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  vendorId    String
+  vendor      Vendor    @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+
+  @@index([vendorId])
+  @@index([email])
+}
+
+model SLA {
+  id              String      @id @default(cuid())
+  name            String
+  description     String?
+  metric          String
+  target          String
+  currentValue    String?
+  status          SLAStatus   @default(MET)
+  lastMeasuredAt  DateTime?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  vendorId        String
+  vendor          Vendor      @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+
+  @@index([vendorId])
+  @@index([status])
+}
+
+model ChangeRequest {
+  id               String                @id @default(cuid())
+  title            String
+  description      String?
+  requestedBy      String?
+  status           ChangeRequestStatus   @default(DRAFT)
+  priority         ChangeRequestPriority @default(NORMAL)
+  originalPlan     Json?
+  requestedChange  Json?
+  impactAnalysis   Json?
+  approvedAt       DateTime?
+  rejectedReason   String?
+  sourceMessageId  String?
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+
+  vendorId         String
+  vendor           Vendor                @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  createdById      String
+  createdBy        User                  @relation("ChangeRequestCreator", fields: [createdById], references: [id])
+  approvedById     String?
+  approvedBy       User?                 @relation("ChangeRequestApprover", fields: [approvedById], references: [id])
+
+  risks            Risk[]
+
+  @@index([vendorId])
+  @@index([status])
+  @@index([createdById])
+  @@index([priority])
+}
+
+model Risk {
+  id              String        @id @default(cuid())
+  title           String
+  description     String?
+  probability     Int
+  impact          Int
+  riskScore       Int
+  category        RiskCategory
+  status          RiskStatus    @default(OPEN)
+  mitigationPlan  String?
+  aiSuggestions   Json?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  vendorId        String?
+  vendor          Vendor?       @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  changeRequestId String?
+  changeRequest   ChangeRequest? @relation(fields: [changeRequestId], references: [id], onDelete: SetNull)
+  createdById     String
+  createdBy       User          @relation("RiskCreator", fields: [createdById], references: [id])
+
+  @@index([vendorId])
+  @@index([changeRequestId])
+  @@index([category])
+  @@index([status])
+  @@index([riskScore])
+  @@index([createdById])
+}
+
+model Playbook {
+  id                String        @id @default(cuid())
+  name              String
+  description       String?
+  category          RiskCategory
+  triggerCondition  String?
+  steps             Json
+  isSystemProvided  Boolean       @default(false)
+  isActive          Boolean       @default(true)
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  teamId            String
+  team              Team          @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@index([teamId])
+  @@index([category])
+  @@index([isActive])
 }
