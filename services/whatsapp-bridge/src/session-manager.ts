@@ -187,7 +187,7 @@ class SessionManager {
       .reverse();
   }
 
-  async sendText(sessionId: string, chatId: string, text: string): Promise<WAMessage> {
+  async sendText(sessionId: string, chatId: string, text: string): Promise<WAMessage | undefined> {
     const sock = this.getSocket(sessionId);
     return sock.sendMessage(chatId, { text });
   }
@@ -199,7 +199,7 @@ class SessionManager {
     mimetype: string,
     filename?: string,
     caption?: string
-  ): Promise<WAMessage> {
+  ): Promise<WAMessage | undefined> {
     const sock = this.getSocket(sessionId);
 
     if (mimetype.startsWith("image/")) {
@@ -216,7 +216,7 @@ class SessionManager {
     }
   }
 
-  async sendAudio(sessionId: string, chatId: string, buffer: Buffer): Promise<WAMessage> {
+  async sendAudio(sessionId: string, chatId: string, buffer: Buffer): Promise<WAMessage | undefined> {
     const sock = this.getSocket(sessionId);
     return sock.sendMessage(chatId, {
       audio: buffer,

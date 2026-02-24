@@ -39,7 +39,7 @@ router.post("/sessions/:id/send/text", async (req, res) => {
     }
 
     const result = await sessionManager.sendText(req.params.id, chatId, text);
-    res.json({ success: true, messageId: result.key.id });
+    res.json({ success: true, messageId: result?.key.id });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -57,13 +57,13 @@ router.post("/sessions/:id/send/media", upload.single("file"), async (req, res) 
 
     const result = await sessionManager.sendMedia(
       req.params.id,
-      chatId,
+      String(chatId),
       file.buffer,
-      file.mimetype,
+      String(file.mimetype),
       file.originalname,
       caption
     );
-    res.json({ success: true, messageId: result.key.id });
+    res.json({ success: true, messageId: result?.key.id });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -81,10 +81,10 @@ router.post("/sessions/:id/send/audio", upload.single("audio"), async (req, res)
 
     const result = await sessionManager.sendAudio(
       req.params.id,
-      chatId,
+      String(chatId),
       file.buffer
     );
-    res.json({ success: true, messageId: result.key.id });
+    res.json({ success: true, messageId: result?.key.id });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
