@@ -15,7 +15,7 @@ export function getWebSearchTool() {
     web_search: tool({
       description:
         "Search the web for current information. Use this when the user asks about recent events, news, facts, or anything you don't have knowledge about. Returns titles, URLs, and content snippets.",
-      parameters: z.object({
+      inputSchema: z.object({
         query: z.string().describe("The search query"),
         max_results: z
           .number()
@@ -24,7 +24,7 @@ export function getWebSearchTool() {
           .default(5)
           .describe("Maximum number of results to return (default 5)"),
       }),
-      execute: async ({ query, max_results }: { query: string; max_results: number }) => {
+      execute: async ({ query, max_results }) => {
         const response = await fetch("https://api.tavily.com/search", {
           method: "POST",
           headers: { "Content-Type": "application/json" },

@@ -15,14 +15,14 @@ export function getWeatherTool() {
     get_weather: tool({
       description:
         "Get current weather and 3-day forecast for a location. Use this when the user asks about weather, temperature, or conditions for any city or place.",
-      parameters: z.object({
+      inputSchema: z.object({
         location: z
           .string()
           .describe(
             "City name, zip code, or coordinates (e.g. 'London', '10001', '48.8566,2.3522')"
           ),
       }),
-      execute: async ({ location }: { location: string }) => {
+      execute: async ({ location }) => {
         const url = `https://api.weatherapi.com/v1/forecast.json?key=${WEATHERAPI_KEY}&q=${encodeURIComponent(location)}&days=3&aqi=no`;
 
         const response = await fetch(url);

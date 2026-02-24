@@ -32,7 +32,7 @@ export function getNotesAndReminderTools(userId: string, timezone: string | null
     save_note: tool({
       description:
         "Save a personal note for the user. Use when user says 'save this', 'note this down', 'remember that', or wants to store information for later.",
-      parameters: z.object({
+      inputSchema: z.object({
         content: z.string().describe("The note content to save"),
         title: z.string().optional().describe("Short title for the note. Auto-generate if not provided."),
         tags: z.array(z.string()).optional().describe("Tags/keywords for categorization. Auto-generate if not provided."),
@@ -59,7 +59,7 @@ export function getNotesAndReminderTools(userId: string, timezone: string | null
     list_notes: tool({
       description:
         "List the user's saved notes. Optionally search by keyword across content, title, and tags.",
-      parameters: z.object({
+      inputSchema: z.object({
         search: z.string().optional().describe("Keyword to search for in notes"),
         limit: z.number().optional().describe("Max notes to return. Default 10."),
       }),
@@ -105,7 +105,7 @@ export function getNotesAndReminderTools(userId: string, timezone: string | null
 
     update_note: tool({
       description: "Update an existing note's content, title, or tags.",
-      parameters: z.object({
+      inputSchema: z.object({
         noteId: z.string().describe("The ID of the note to update"),
         content: z.string().optional().describe("New content for the note"),
         title: z.string().optional().describe("New title for the note"),
@@ -132,7 +132,7 @@ export function getNotesAndReminderTools(userId: string, timezone: string | null
 
     delete_note: tool({
       description: "Delete a note permanently. Confirm with the user before calling this.",
-      parameters: z.object({
+      inputSchema: z.object({
         noteId: z.string().describe("The ID of the note to delete"),
       }),
       execute: async ({ noteId }) => {
@@ -149,7 +149,7 @@ export function getNotesAndReminderTools(userId: string, timezone: string | null
     set_reminder: tool({
       description:
         "Set a reminder for the user. Use when user says 'remind me', 'set a reminder', 'alert me at'. Convert the user's local time to ISO 8601 using their timezone: " + tz,
-      parameters: z.object({
+      inputSchema: z.object({
         title: z.string().describe("Short description of what to remind about"),
         remindAt: z.string().describe("ISO 8601 datetime for when to remind (in user's timezone: " + tz + ")"),
         description: z.string().optional().describe("Longer description or context"),
@@ -202,7 +202,7 @@ export function getNotesAndReminderTools(userId: string, timezone: string | null
 
     list_reminders: tool({
       description: "List the user's reminders. Shows active reminders by default, sorted by upcoming time.",
-      parameters: z.object({
+      inputSchema: z.object({
         status: z.string().optional().describe("Filter by status: 'active', 'completed', or 'cancelled'. Default: 'active'."),
         limit: z.number().optional().describe("Max reminders to return. Default 10."),
       }),
@@ -244,7 +244,7 @@ export function getNotesAndReminderTools(userId: string, timezone: string | null
 
     update_reminder: tool({
       description: "Update a reminder's title, time, description, or recurrence. If remindAt changes, notification flags are reset.",
-      parameters: z.object({
+      inputSchema: z.object({
         reminderId: z.string().describe("The ID of the reminder to update"),
         title: z.string().optional().describe("New title"),
         remindAt: z.string().optional().describe("New ISO 8601 datetime"),
@@ -297,7 +297,7 @@ export function getNotesAndReminderTools(userId: string, timezone: string | null
 
     delete_reminder: tool({
       description: "Cancel a reminder (soft-delete). The reminder won't fire any more pings.",
-      parameters: z.object({
+      inputSchema: z.object({
         reminderId: z.string().describe("The ID of the reminder to cancel"),
       }),
       execute: async ({ reminderId }) => {
