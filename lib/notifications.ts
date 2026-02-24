@@ -441,3 +441,182 @@ export async function notifyNewMessage({
     metadata: { contactId, channel },
   });
 }
+
+// ============================================
+// Vendor Tracker Notifications
+// ============================================
+
+export async function notifyChangeRequestSubmitted({
+  teamId,
+  changeRequestTitle,
+  changeRequestId,
+  vendorName,
+  submittedByName,
+  submittedById,
+}: {
+  teamId: string;
+  changeRequestTitle: string;
+  changeRequestId: string;
+  vendorName: string;
+  submittedByName: string;
+  submittedById: string;
+}) {
+  return createTeamNotification(
+    teamId,
+    {
+      title: 'Change request submitted',
+      message: `${submittedByName} submitted "${changeRequestTitle}" for ${vendorName}`,
+      type: 'warning',
+      link: `/vendors/change-requests?cr=${changeRequestId}`,
+      metadata: { changeRequestId, vendorName },
+    },
+    submittedById
+  );
+}
+
+export async function notifyChangeRequestApproved({
+  userId,
+  changeRequestTitle,
+  changeRequestId,
+  vendorName,
+  approvedByName,
+}: {
+  userId: string;
+  changeRequestTitle: string;
+  changeRequestId: string;
+  vendorName: string;
+  approvedByName: string;
+}) {
+  return createNotification({
+    userId,
+    title: 'Change request approved',
+    message: `${approvedByName} approved "${changeRequestTitle}" for ${vendorName}`,
+    type: 'success',
+    link: `/vendors/change-requests?cr=${changeRequestId}`,
+    metadata: { changeRequestId },
+  });
+}
+
+export async function notifyChangeRequestRejected({
+  userId,
+  changeRequestTitle,
+  changeRequestId,
+  vendorName,
+  rejectedByName,
+  reason,
+}: {
+  userId: string;
+  changeRequestTitle: string;
+  changeRequestId: string;
+  vendorName: string;
+  rejectedByName: string;
+  reason?: string;
+}) {
+  return createNotification({
+    userId,
+    title: 'Change request rejected',
+    message: `${rejectedByName} rejected "${changeRequestTitle}" for ${vendorName}${reason ? `: ${reason}` : ''}`,
+    type: 'error',
+    link: `/vendors/change-requests?cr=${changeRequestId}`,
+    metadata: { changeRequestId, reason },
+  });
+}
+
+export async function notifySLABreach({
+  teamId,
+  vendorName,
+  vendorId,
+  slaName,
+  currentValue,
+  target,
+}: {
+  teamId: string;
+  vendorName: string;
+  vendorId: string;
+  slaName: string;
+  currentValue: string;
+  target: string;
+}) {
+  return createTeamNotification(teamId, {
+    title: 'SLA Breach detected',
+    message: `${vendorName}: "${slaName}" is at ${currentValue} (target: ${target})`,
+    type: 'error',
+    link: `/vendors/${vendorId}?tab=slas`,
+    metadata: { vendorId, slaName },
+  });
+}
+
+export async function notifyRenewalApproaching({
+  teamId,
+  vendorName,
+  vendorId,
+  renewalDate,
+  daysUntil,
+}: {
+  teamId: string;
+  vendorName: string;
+  vendorId: string;
+  renewalDate: Date;
+  daysUntil: number;
+}) {
+  return createTeamNotification(teamId, {
+    title: 'Vendor renewal approaching',
+    message: `${vendorName} contract renews in ${daysUntil} days (${renewalDate.toLocaleDateString()})`,
+    type: daysUntil <= 7 ? 'warning' : 'info',
+    link: `/vendors/${vendorId}`,
+    metadata: { vendorId, renewalDate: renewalDate.toISOString(), daysUntil },
+  });
+}
+
+export async function notifyAIChangeDetected({
+  userId,
+  vendorName,
+  vendorId,
+  changeRequestId,
+  detectedTitle,
+}: {
+  userId: string;
+  vendorName: string;
+  vendorId: string;
+  changeRequestId: string;
+  detectedTitle: string;
+}) {
+  return createNotification({
+    userId,
+    title: 'AYA detected a change request',
+    message: `Possible change request from ${vendorName}: "${detectedTitle}". Review the draft.`,
+    type: 'info',
+    link: `/vendors/change-requests?cr=${changeRequestId}`,
+    metadata: { vendorId, changeRequestId },
+  });
+}
+
+export async function notifyHighRiskCreated({
+  teamId,
+  riskTitle,
+  riskId,
+  riskScore,
+  vendorName,
+  createdByName,
+  createdById,
+}: {
+  teamId: string;
+  riskTitle: string;
+  riskId: string;
+  riskScore: number;
+  vendorName?: string;
+  createdByName: string;
+  createdById: string;
+}) {
+  return createTeamNotification(
+    teamId,
+    {
+      title: 'High risk identified',
+      message: `${createdByName} identified risk "${riskTitle}" (score: ${riskScore})${vendorName ? ` for ${vendorName}` : ''}`,
+      type: 'error',
+      link: `/vendors/risks?risk=${riskId}`,
+      metadata: { riskId, riskScore, vendorName },
+    },
+    createdById
+  );
+}
