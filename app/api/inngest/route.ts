@@ -33,6 +33,7 @@ import {
   vendorRenewalCheck,
   vendorSLACheck,
 } from "@/lib/inngest/functions/vendor-monitoring";
+import { detectVendorChangeFromInbox } from "@/lib/inngest/functions/vendor-inbox-detection";
 
 // Create an API that serves Inngest functions
 export const { GET, POST, PUT } = serve({
@@ -69,5 +70,7 @@ export const { GET, POST, PUT } = serve({
     // Vendor monitoring cron jobs
     vendorRenewalCheck, // Cron: daily vendor renewal date monitoring
     vendorSLACheck, // Cron: SLA breach detection and auto-risk creation
+    // Vendor inbox AI detection
+    detectVendorChangeFromInbox, // AI-powered change request detection from inbox messages
   ],
 });
