@@ -32,6 +32,12 @@ const COMPLEX_KEYWORDS = [
   // Notes & Reminders
   "note", "notes", "remind", "reminder", "reminders",
   "save this", "remember this", "note this",
+  // Vendor Tracker
+  "vendor", "vendors", "sla", "slas", "renewal", "renewals",
+  "change request", "change requests",
+  "risk", "risks", "heatmap", "risk heatmap",
+  "playbook", "playbooks", "mitigation",
+  "offboarding", "onboarding vendor",
 ];
 
 // Patterns that are definitely simple regardless of keywords

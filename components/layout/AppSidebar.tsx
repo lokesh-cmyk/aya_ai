@@ -20,6 +20,7 @@ import {
   Video,
   Radio,
   Handshake,
+  BookOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSession } from "@/lib/auth-client";
@@ -34,6 +35,7 @@ const navigation = [
   { name: "Inbox", href: "/inbox", icon: Inbox },
   { name: "CRM", href: "/crm", icon: FolderKanban },
   { name: "Vendors", href: "/vendors", icon: Handshake },
+  { name: "Playbooks", href: "/playbooks", icon: BookOpen },
   { name: "Analytics", href: "/analytics", icon: BarChart3 },
   { name: "Contacts", href: "/contacts", icon: Users },
   { name: "Message Center", href: "/messages", icon: MessageSquare },

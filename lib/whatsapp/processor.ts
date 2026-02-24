@@ -13,6 +13,7 @@ import { getSearchAndWeatherTools } from "@/lib/tools";
 import { formatForWhatsApp, splitMessage } from "./formatter";
 import { isDigestToggle, isMeetingSummaryToggle } from "./classifier";
 import { getNotesAndReminderTools } from "./tools";
+import { getVendorTrackerTools } from "./vendor-tools";
 import {
   sendText,
   startTyping,
@@ -114,6 +115,12 @@ export async function processMessage(
       // Add notes & reminders tools on complex path
       const customTools = getNotesAndReminderTools(user.id, user.timezone);
       tools = { ...tools, ...customTools };
+
+      // Add vendor tracker tools (scoped to teamId for org isolation)
+      if (user.teamId) {
+        const vendorTools = getVendorTrackerTools(user.id, user.teamId);
+        tools = { ...tools, ...vendorTools };
+      }
 
       // Add Composio tools (external integrations)
       try {
@@ -327,6 +334,30 @@ async function loadUserContext(userId: string, teamId: string | null) {
     include: { contact: true },
   });
 
+  // Vendor tracker context
+  const vendorSummary = teamId
+    ? await Promise.all([
+        prisma.vendor.count({ where: { teamId } }),
+        prisma.vendor.count({ where: { teamId, status: "ACTIVE" } }),
+        prisma.sLA.count({ where: { vendor: { teamId }, status: "BREACHED" } }),
+        prisma.changeRequest.count({
+          where: {
+            vendor: { teamId },
+            status: { in: ["DRAFT", "SUBMITTED", "UNDER_REVIEW"] },
+          },
+        }),
+        prisma.risk.count({
+          where: { vendor: { teamId }, riskScore: { gte: 16 }, status: "OPEN" },
+        }),
+      ]).then(([total, active, breaches, openCRs, highRisks]) => ({
+        total,
+        active,
+        breaches,
+        openCRs,
+        highRisks,
+      }))
+    : null;
+
   const recentMeetings = await prisma.meeting.findMany({
     where: {
       OR: [{ userId }, ...(teamId ? [{ teamId }] : [])],
@@ -380,6 +411,7 @@ async function loadUserContext(userId: string, teamId: string | null) {
         date: m.createdAt,
       };
     }),
+    vendorSummary,
     meetings: recentMeetings.map((meeting) => {
       const summaryInsight = meeting.insights.find((i) => i.type === "summary");
       const actionItemsInsight = meeting.insights.find(
@@ -504,6 +536,19 @@ You have access to:
   - "every day for 30 days" → FREQ=DAILY;COUNT=30
 - When listing notes or reminders, show numbered list so user can reference by # (e.g., "delete #2")
 - Before deleting a note or cancelling a reminder, confirm with the user first
+
+## Vendor Tracker
+When user asks about vendors, SLAs, change requests, risks, or playbooks — use the vendor tracker tools.
+- Use list_vendors for "show my vendors", "vendor list", etc.
+- Use get_vendor_details for "tell me about [vendor]", "vendor info [name]"
+- Use get_vendor_stats for "vendor summary", "how are vendors doing"
+- Use list_change_requests for "pending CRs", "change requests", "approvals"
+- Use list_risks for "show risks", "high risks", "risk heatmap"
+- Use list_playbooks for "show playbooks", "mitigation strategies"
+- For risks, show the score as Probability × Impact and the severity level (CRITICAL/HIGH/MEDIUM/LOW)
+- For change requests, always include status and priority
+- Before creating or updating any vendor data, briefly confirm the details with the user
+- Creating a change request or risk automatically triggers AI analysis — inform the user it's processing
 `;
 
   // Add memories
@@ -523,6 +568,14 @@ You have access to:
 - Recent Meetings: ${context.meetings?.length || 0}
 - Daily Digest: ${user.whatsappDigestEnabled ? "Enabled" : "Disabled"}
 - Post-Meeting Summaries: ${user.whatsappMeetingSummaryEnabled ? "Enabled" : "Disabled"}`;
+
+  if (context.vendorSummary) {
+    const vs = context.vendorSummary;
+    prompt += `\n- Vendors: ${vs.total} total (${vs.active} active)`;
+    if (vs.breaches > 0) prompt += ` | ${vs.breaches} SLA breach${vs.breaches !== 1 ? "es" : ""}`;
+    if (vs.openCRs > 0) prompt += ` | ${vs.openCRs} open CR${vs.openCRs !== 1 ? "s" : ""}`;
+    if (vs.highRisks > 0) prompt += ` | ${vs.highRisks} high risk${vs.highRisks !== 1 ? "s" : ""}`;
+  }
 
   if (context.projects.length > 0) {
     prompt += `\n\n### Projects:\n${context.projects.map((p: any) => `- ${p.name}: ${p.tasks.length} tasks`).join("\n")}`;
