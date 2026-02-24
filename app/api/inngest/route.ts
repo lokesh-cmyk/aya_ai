@@ -66,5 +66,8 @@ export const { GET, POST, PUT } = serve({
     // Vendor tracker AI analysis
     analyzeChangeRequest, // AI impact analysis for vendor change requests
     generateRiskMitigations, // AI mitigation suggestions for vendor risks
+    // Vendor monitoring cron jobs
+    vendorRenewalCheck, // Cron: daily vendor renewal date monitoring
+    vendorSLACheck, // Cron: SLA breach detection and auto-risk creation
   ],
 });
