@@ -238,7 +238,7 @@ export const ClaudeChatInput: React.FC<ClaudeChatInputProps> = ({ onSendMessage,
     const [files, setFiles] = useState<AttachedFile[]>([]);
     const [pastedContent, setPastedContent] = useState<Array<{ id: string; content: string; timestamp: Date }>>([]);
     const [isDragging, setIsDragging] = useState(false);
-    const [selectedModel, setSelectedModel] = useState("sonnet-4.5");
+    const [selectedModel, setSelectedModel] = useState("sonnet-4.6");
     const [isThinkingEnabled, setIsThinkingEnabled] = useState(false);
     const [isListening, setIsListening] = useState(false);
     const [isTranscribing, setIsTranscribing] = useState(false);
@@ -250,8 +250,8 @@ export const ClaudeChatInput: React.FC<ClaudeChatInputProps> = ({ onSendMessage,
     const originalMessageRef = useRef<string>("");
 
     const models = [
-        { id: "opus-4.5", name: "Opus 4.5", description: "Most capable for complex work" },
-        { id: "sonnet-4.5", name: "Sonnet 4.5", description: "Best for everyday tasks" },
+        { id: "opus-4.6", name: "Opus 4.6", description: "Most capable for complex work" },
+        { id: "sonnet-4.6", name: "Sonnet 4.6", description: "Best for everyday tasks" },
         { id: "haiku-4.5", name: "Haiku 4.5", description: "Fastest for quick answers" }
     ];
 

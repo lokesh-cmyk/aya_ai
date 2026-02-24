@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
       data: {
         userId: session.user.id,
         title: title || 'New Conversation',
-        model: model || 'sonnet-4.5',
+        model: model || 'sonnet-4.6',
       },
     });
 

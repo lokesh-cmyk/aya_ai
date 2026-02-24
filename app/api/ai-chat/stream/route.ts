@@ -104,8 +104,8 @@ const AVAILABLE_INTEGRATIONS: Record<string, IntegrationInfo> = {
 
 // Map model names to Claude model IDs
 const modelMap: Record<string, string> = {
-  'opus-4.5': 'claude-opus-4-5-20251101',
-  'sonnet-4.5': 'claude-sonnet-4-5-20250929',
+  'opus-4.6': 'claude-opus-4-6',
+  'sonnet-4.6': 'claude-sonnet-4-6',
   'haiku-4.5': 'claude-haiku-4-5-20251001',
 };
 
@@ -408,7 +408,7 @@ export async function POST(request: NextRequest) {
       }),
     };
 
-    const claudeModel = modelMap[model] || modelMap['sonnet-4.5'];
+    const claudeModel = modelMap[model] || modelMap['sonnet-4.6'];
 
     // Load Composio tools for connected integrations (ClickUp, Google Calendar, etc.)
     let composioTools: import('ai').ToolSet = {};

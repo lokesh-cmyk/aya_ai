@@ -357,11 +357,11 @@ async function generateAIResponseWithComposio({
 
   const { tools, sessionId } = await getComposioSessionTools(userId);
   const modelMap: Record<string, string> = {
-    'opus-4.5': 'claude-opus-4-5-20251101',
-    'sonnet-4.5': 'claude-sonnet-4-5-20250929',
+    'opus-4.6': 'claude-opus-4-6',
+    'sonnet-4.6': 'claude-sonnet-4-6',
     'haiku-4.5': 'claude-haiku-4-5-20251001',
   };
-  const claudeModel = modelMap[model] || modelMap['sonnet-4.5'];
+  const claudeModel = modelMap[model] || modelMap['sonnet-4.6'];
 
   const systemPrompt = `You are an AI assistant named AYA, helping with project management, email insights, meetings, Google Calendar, ClickUp, Instagram, and LinkedIn.
 
@@ -484,12 +484,12 @@ async function generateAIResponse({
 
     // Map model names to Claude model IDs
     const modelMap: Record<string, string> = {
-      'opus-4.5': 'claude-opus-4-5-20251101',
-      'sonnet-4.5': 'claude-sonnet-4-5-20250929',
+      'opus-4.6': 'claude-opus-4-6',
+      'sonnet-4.6': 'claude-sonnet-4-6',
       'haiku-4.5': 'claude-haiku-4-5-20251001',
     };
 
-    const claudeModel = modelMap[model] || modelMap['sonnet-4.5'];
+    const claudeModel = modelMap[model] || modelMap['sonnet-4.6'];
 
     // Build system prompt with context
     const systemPrompt = `You are an AI assistant named AYA, helping with project management, email insights, meetings, and calendar coordination. You have access to:

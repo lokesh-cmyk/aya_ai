@@ -71,7 +71,7 @@ export function AyaChatInterface({ onClose }: AyaChatInterfaceProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: "AYA Chat",
-          model: "sonnet-4.5",
+          model: "sonnet-4.6",
         }),
       });
       if (!res.ok) throw new Error("Failed to create conversation");
@@ -112,7 +112,7 @@ export function AyaChatInterface({ onClose }: AyaChatInterfaceProps) {
     await startStream({
       conversationId,
       message: text,
-      model: "sonnet-4.5",
+      model: "sonnet-4.6",
       files: [],
       pastedContent: [],
       isThinkingEnabled: false,
