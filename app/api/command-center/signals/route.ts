@@ -13,6 +13,10 @@ import {
   detectBottleneckSignals,
   calculateVelocityTrend,
   createVelocitySignal,
+  detectSLABreachSignals,
+  detectRenewalDueSignals,
+  detectPendingChangeRequestSignals,
+  detectHighRiskSignals,
 } from "@/lib/command-center/signals";
 import { Signal, SignalSummary, CommandCenterResponse } from "@/lib/command-center/types";
 
@@ -79,6 +83,10 @@ export async function GET(request: NextRequest) {
       commGap,
       bottleneck,
       velocity,
+      slaBreach,
+      renewalDue,
+      changeRequestPending,
+      highRisk,
     ] = await Promise.all([
       detectShippedSignals(user.teamId, spaceIds),
       detectStaleSignals(user.teamId, spaceIds),
@@ -87,6 +95,10 @@ export async function GET(request: NextRequest) {
       detectCommGapSignals(user.teamId),
       detectBottleneckSignals(user.teamId, spaceIds),
       calculateVelocityTrend(user.teamId, spaceIds),
+      detectSLABreachSignals(user.teamId),
+      detectRenewalDueSignals(user.teamId),
+      detectPendingChangeRequestSignals(user.teamId),
+      detectHighRiskSignals(user.teamId),
     ]);
 
     // Combine and filter dismissed signals
@@ -97,6 +109,10 @@ export async function GET(request: NextRequest) {
       ...stale,
       ...commGap,
       ...shipped,
+      ...slaBreach,
+      ...renewalDue,
+      ...changeRequestPending,
+      ...highRisk,
     ].filter((s) => !dismissedKeys.has(s.id));
 
     // Add velocity signal if applicable
@@ -116,6 +132,10 @@ export async function GET(request: NextRequest) {
         bottleneck: allSignals.filter((s) => s.type === "bottleneck").length,
         comm_gap: allSignals.filter((s) => s.type === "comm_gap").length,
         velocity: allSignals.filter((s) => s.type === "velocity").length,
+        sla_breach: allSignals.filter((s) => s.type === "sla_breach").length,
+        renewal_due: allSignals.filter((s) => s.type === "renewal_due").length,
+        change_request_pending: allSignals.filter((s) => s.type === "change_request_pending").length,
+        high_risk: allSignals.filter((s) => s.type === "high_risk").length,
       },
       bySpace: {},
     };

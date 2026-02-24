@@ -7,7 +7,11 @@ export type SignalType =
   | "overdue"
   | "bottleneck"
   | "comm_gap"
-  | "velocity";
+  | "velocity"
+  | "sla_breach"
+  | "renewal_due"
+  | "change_request_pending"
+  | "high_risk";
 
 export type SignalSeverity = "critical" | "warning" | "info";
 
@@ -19,7 +23,7 @@ export interface Signal {
   subtitle: string;
   spaceId: string | null;
   spaceName: string | null;
-  entityType: "task" | "contact" | "user";
+  entityType: "task" | "contact" | "user" | "vendor";
   entityId: string;
   assignee?: {
     id: string;
@@ -66,3 +70,8 @@ export const STALENESS_PROGRESS_DAYS = 14;
 export const COMM_GAP_DAYS = 3;
 export const BOTTLENECK_THRESHOLD = 3; // tasks blocking others
 export const VELOCITY_DROP_THRESHOLD = 50; // percent
+
+// Vendor signal thresholds
+export const RENEWAL_WARNING_DAYS = 14;
+export const CHANGE_REQUEST_STALE_DAYS = 2;
+export const HIGH_RISK_THRESHOLD = 16;

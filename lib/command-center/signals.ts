@@ -11,6 +11,9 @@ import {
   COMM_GAP_DAYS,
   BOTTLENECK_THRESHOLD,
   VELOCITY_DROP_THRESHOLD,
+  RENEWAL_WARNING_DAYS,
+  CHANGE_REQUEST_STALE_DAYS,
+  HIGH_RISK_THRESHOLD,
 } from "./types";
 
 // Helper to calculate days ago
@@ -445,4 +448,172 @@ export function createVelocitySignal(
     };
   }
   return null;
+}
+
+// Detect SLA breaches
+export async function detectSLABreachSignals(
+  teamId: string
+): Promise<Signal[]> {
+  const slas = await prisma.sLA.findMany({
+    where: {
+      status: "BREACHED",
+      vendor: { teamId },
+    },
+    include: {
+      vendor: { select: { id: true, name: true } },
+    },
+    orderBy: { updatedAt: "desc" },
+  });
+
+  return slas.map((sla) => ({
+    id: `vendor:${sla.vendorId}:sla_breach:${sla.id}`,
+    type: "sla_breach" as SignalType,
+    severity: "critical" as SignalSeverity,
+    title: `SLA "${sla.name}" breached`,
+    subtitle: `${sla.vendor.name} · ${sla.metric}: ${sla.currentValue || "N/A"} (target: ${sla.target})`,
+    spaceId: null,
+    spaceName: null,
+    entityType: "vendor" as const,
+    entityId: sla.vendorId,
+    createdAt: sla.updatedAt,
+    metadata: {
+      slaId: sla.id,
+      vendorName: sla.vendor.name,
+      metric: sla.metric,
+      target: sla.target,
+      currentValue: sla.currentValue,
+    },
+  }));
+}
+
+// Detect upcoming vendor renewals
+export async function detectRenewalDueSignals(
+  teamId: string
+): Promise<Signal[]> {
+  const now = new Date();
+  const warningDate = new Date();
+  warningDate.setDate(warningDate.getDate() + RENEWAL_WARNING_DAYS);
+
+  const vendors = await prisma.vendor.findMany({
+    where: {
+      teamId,
+      renewalDate: {
+        gte: now,
+        lte: warningDate,
+      },
+    },
+    orderBy: { renewalDate: "asc" },
+  });
+
+  return vendors.map((vendor) => {
+    const daysUntilRenewal = Math.ceil(
+      ((vendor.renewalDate?.getTime() || now.getTime()) - now.getTime()) / (1000 * 60 * 60 * 24)
+    );
+
+    return {
+      id: `vendor:${vendor.id}:renewal_due`,
+      type: "renewal_due" as SignalType,
+      severity: (daysUntilRenewal < 7 ? "critical" : "warning") as SignalSeverity,
+      title: `${vendor.name} renewal in ${daysUntilRenewal}d`,
+      subtitle: `${vendor.category} · Renewal: ${vendor.renewalDate?.toLocaleDateString() || "Unknown"}`,
+      spaceId: null,
+      spaceName: null,
+      entityType: "vendor" as const,
+      entityId: vendor.id,
+      createdAt: vendor.renewalDate || vendor.updatedAt,
+      metadata: {
+        vendorName: vendor.name,
+        renewalDate: vendor.renewalDate,
+        daysUntilRenewal,
+        contractValue: vendor.contractValue,
+        renewalType: vendor.renewalType,
+      },
+    };
+  });
+}
+
+// Detect stale pending change requests
+export async function detectPendingChangeRequestSignals(
+  teamId: string
+): Promise<Signal[]> {
+  const staleDate = daysAgo(CHANGE_REQUEST_STALE_DAYS);
+
+  const changeRequests = await prisma.changeRequest.findMany({
+    where: {
+      status: { in: ["SUBMITTED", "UNDER_REVIEW"] },
+      createdAt: { lt: staleDate },
+      vendor: { teamId },
+    },
+    include: {
+      vendor: { select: { id: true, name: true } },
+    },
+    orderBy: { createdAt: "asc" },
+  });
+
+  return changeRequests.map((cr) => {
+    const daysPending = Math.floor(
+      (new Date().getTime() - cr.createdAt.getTime()) / (1000 * 60 * 60 * 24)
+    );
+
+    return {
+      id: `vendor:${cr.vendorId}:change_request_pending:${cr.id}`,
+      type: "change_request_pending" as SignalType,
+      severity: "warning" as SignalSeverity,
+      title: `Change request "${cr.title}" pending`,
+      subtitle: `${cr.vendor.name} · ${cr.status.replace("_", " ").toLowerCase()} · ${daysPending}d waiting`,
+      spaceId: null,
+      spaceName: null,
+      entityType: "vendor" as const,
+      entityId: cr.vendorId,
+      createdAt: cr.createdAt,
+      metadata: {
+        changeRequestId: cr.id,
+        vendorName: cr.vendor.name,
+        status: cr.status,
+        priority: cr.priority,
+        daysPending,
+      },
+    };
+  });
+}
+
+// Detect high-risk vendors
+export async function detectHighRiskSignals(
+  teamId: string
+): Promise<Signal[]> {
+  const risks = await prisma.risk.findMany({
+    where: {
+      riskScore: { gte: HIGH_RISK_THRESHOLD },
+      status: { in: ["OPEN", "MITIGATING"] },
+      vendor: { teamId },
+    },
+    include: {
+      vendor: { select: { id: true, name: true } },
+    },
+    orderBy: { riskScore: "desc" },
+  });
+
+  return risks
+    .filter((risk) => risk.vendor !== null)
+    .map((risk) => ({
+      id: `vendor:${risk.vendorId}:high_risk:${risk.id}`,
+      type: "high_risk" as SignalType,
+      severity: "critical" as SignalSeverity,
+      title: `High risk: "${risk.title}"`,
+      subtitle: `${risk.vendor!.name} · Score: ${risk.riskScore} (${risk.probability}×${risk.impact}) · ${risk.status.toLowerCase()}`,
+      spaceId: null,
+      spaceName: null,
+      entityType: "vendor" as const,
+      entityId: risk.vendorId!,
+      createdAt: risk.createdAt,
+      metadata: {
+        riskId: risk.id,
+        vendorName: risk.vendor!.name,
+        riskScore: risk.riskScore,
+        probability: risk.probability,
+        impact: risk.impact,
+        status: risk.status,
+        category: risk.category,
+      },
+    }));
 }
