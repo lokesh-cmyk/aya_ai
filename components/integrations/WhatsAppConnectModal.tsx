@@ -40,10 +40,12 @@ export function WhatsAppConnectModal({
   useEffect(() => {
     if (!open || !sessionId) return;
 
-    const bridgeWsUrl = process.env.NEXT_PUBLIC_WHATSAPP_BRIDGE_WS_URL;
-    if (!bridgeWsUrl) return;
+    const bridgeBaseUrl = process.env.NEXT_PUBLIC_WHATSAPP_BRIDGE_URL;
+    const bridgeApiKey = process.env.NEXT_PUBLIC_WHATSAPP_BRIDGE_API_KEY;
+    if (!bridgeBaseUrl || !bridgeApiKey) return;
 
-    const ws = new WebSocket(bridgeWsUrl);
+    const wsUrl = bridgeBaseUrl.replace(/^http/, "ws") + `/ws?apiKey=${encodeURIComponent(bridgeApiKey)}`;
+    const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
 
     ws.onopen = () => {

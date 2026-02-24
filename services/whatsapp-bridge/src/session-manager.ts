@@ -58,65 +58,69 @@ class SessionManager {
     this.sockets.set(sessionId, sock);
 
     sock.ev.on("connection.update", async (update: Partial<ConnectionState>) => {
-      const { connection, lastDisconnect, qr } = update;
+      try {
+        const { connection, lastDisconnect, qr } = update;
 
-      if (qr) {
-        const qrImage = await QRCode.toDataURL(qr);
-        await prisma.whatsAppSession.update({
-          where: { id: sessionId },
-          data: { status: "qr_ready" },
-        });
-        await publish(redisChannels.qr(sessionId), {
-          sessionId,
-          qr: qrImage,
-        });
-      }
+        if (qr) {
+          const qrImage = await QRCode.toDataURL(qr);
+          await prisma.whatsAppSession.update({
+            where: { id: sessionId },
+            data: { status: "qr_ready" },
+          }).catch(() => {});
+          await publish(redisChannels.qr(sessionId), {
+            sessionId,
+            qr: qrImage,
+          });
+        }
 
-      if (connection === "open") {
-        const phone = sock.user?.id
-          ? jidNormalizedUser(sock.user.id).split("@")[0]
-          : null;
-        const displayName = sock.user?.name || null;
+        if (connection === "open") {
+          const phone = sock.user?.id
+            ? jidNormalizedUser(sock.user.id).split("@")[0]
+            : null;
+          const displayName = sock.user?.name || null;
 
-        await prisma.whatsAppSession.update({
-          where: { id: sessionId },
-          data: {
+          await prisma.whatsAppSession.update({
+            where: { id: sessionId },
+            data: {
+              status: "connected",
+              phone: phone ? `+${phone}` : null,
+              displayName,
+              lastSeen: new Date(),
+            },
+          }).catch(() => {});
+
+          await publish(redisChannels.status(sessionId), {
+            sessionId,
             status: "connected",
             phone: phone ? `+${phone}` : null,
             displayName,
-            lastSeen: new Date(),
-          },
-        });
-
-        await publish(redisChannels.status(sessionId), {
-          sessionId,
-          status: "connected",
-          phone: phone ? `+${phone}` : null,
-          displayName,
-        });
-
-        await saveState();
-      }
-
-      if (connection === "close") {
-        const statusCode = (lastDisconnect?.error as Boom)?.output?.statusCode;
-        const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
-
-        this.sockets.delete(sessionId);
-
-        if (shouldReconnect) {
-          setTimeout(() => this.createSession(sessionId), 3000);
-        } else {
-          await deleteAuthState(sessionId);
-          await prisma.whatsAppSession.update({
-            where: { id: sessionId },
-            data: { status: "disconnected", phone: null, displayName: null },
           });
-          await publish(redisChannels.status(sessionId), {
-            sessionId,
-            status: "disconnected",
-          });
+
+          await saveState();
         }
+
+        if (connection === "close") {
+          const statusCode = (lastDisconnect?.error as Boom)?.output?.statusCode;
+          const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
+
+          this.sockets.delete(sessionId);
+
+          if (shouldReconnect) {
+            setTimeout(() => this.createSession(sessionId), 3000);
+          } else {
+            await deleteAuthState(sessionId);
+            await prisma.whatsAppSession.update({
+              where: { id: sessionId },
+              data: { status: "disconnected", phone: null, displayName: null },
+            }).catch(() => {});
+            await publish(redisChannels.status(sessionId), {
+              sessionId,
+              status: "disconnected",
+            });
+          }
+        }
+      } catch (err) {
+        console.error(`connection.update error for session ${sessionId}:`, err);
       }
     });
 
