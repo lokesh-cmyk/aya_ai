@@ -19,6 +19,7 @@ import {
   Sparkles,
   Video,
   Radio,
+  Handshake,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSession } from "@/lib/auth-client";
@@ -32,6 +33,7 @@ const navigation = [
   { name: "Meetings", href: "/meetings", icon: Video },
   { name: "Inbox", href: "/inbox", icon: Inbox },
   { name: "CRM", href: "/crm", icon: FolderKanban },
+  { name: "Vendors", href: "/vendors", icon: Handshake },
   { name: "Analytics", href: "/analytics", icon: BarChart3 },
   { name: "Contacts", href: "/contacts", icon: Users },
   { name: "Message Center", href: "/messages", icon: MessageSquare },
