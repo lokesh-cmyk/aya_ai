@@ -56,7 +56,7 @@ router.post("/sessions/:id/send/media", upload.single("file"), async (req, res) 
     }
 
     const result = await sessionManager.sendMedia(
-      req.params.id,
+      req.params.id as string,
       String(chatId),
       file.buffer,
       String(file.mimetype),
@@ -80,7 +80,7 @@ router.post("/sessions/:id/send/audio", upload.single("audio"), async (req, res)
     }
 
     const result = await sessionManager.sendAudio(
-      req.params.id,
+      req.params.id as string,
       String(chatId),
       file.buffer
     );
