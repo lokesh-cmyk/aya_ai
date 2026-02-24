@@ -217,6 +217,7 @@ export default function CommandCenterPage() {
   const shippedSignals = signals.filter((s) => s.type === "shipped");
 
   // Count by severity
+  //just to push the changes!
   const criticalCount = signals.filter(s => s.severity === "critical").length;
   const warningCount = signals.filter(s => s.severity === "warning").length;
 
