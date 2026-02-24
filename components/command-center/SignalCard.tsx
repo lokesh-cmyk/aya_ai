@@ -23,6 +23,8 @@ import {
   X,
   Loader2,
   UserMinus,
+  Calendar,
+  Zap,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -56,6 +58,10 @@ const signalConfig: Record<
   bottleneck: { icon: User, color: "text-orange-600", bg: "bg-orange-50" },
   comm_gap: { icon: MessageSquare, color: "text-blue-600", bg: "bg-blue-50" },
   velocity: { icon: TrendingDown, color: "text-purple-600", bg: "bg-purple-50" },
+  sla_breach: { icon: AlertTriangle, color: "text-red-600", bg: "bg-red-50" },
+  renewal_due: { icon: Calendar, color: "text-teal-600", bg: "bg-teal-50" },
+  change_request_pending: { icon: Clock, color: "text-yellow-600", bg: "bg-yellow-50" },
+  high_risk: { icon: Zap, color: "text-rose-600", bg: "bg-rose-50" },
 };
 
 interface SignalCardProps {

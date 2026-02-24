@@ -114,6 +114,42 @@ const signalConfig: Record<SignalType, {
     label: "Velocity",
     description: "Trend change"
   },
+  sla_breach: {
+    icon: AlertTriangle,
+    color: "text-red-600",
+    bg: "bg-red-50",
+    border: "border-red-200",
+    gradient: "from-red-600 to-rose-700",
+    label: "SLA Breach",
+    description: "SLA threshold exceeded"
+  },
+  renewal_due: {
+    icon: Calendar,
+    color: "text-teal-600",
+    bg: "bg-teal-50",
+    border: "border-teal-200",
+    gradient: "from-teal-500 to-cyan-600",
+    label: "Renewal Due",
+    description: "Contract renewal approaching"
+  },
+  change_request_pending: {
+    icon: Clock,
+    color: "text-yellow-600",
+    bg: "bg-yellow-50",
+    border: "border-yellow-200",
+    gradient: "from-yellow-500 to-amber-600",
+    label: "Change Request",
+    description: "Pending change request"
+  },
+  high_risk: {
+    icon: Zap,
+    color: "text-rose-600",
+    bg: "bg-rose-50",
+    border: "border-rose-200",
+    gradient: "from-rose-500 to-red-600",
+    label: "High Risk",
+    description: "High risk vendor"
+  },
 };
 
 export default function CommandCenterPage() {
