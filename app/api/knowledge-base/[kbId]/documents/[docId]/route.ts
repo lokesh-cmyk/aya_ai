@@ -3,9 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { getSessionCookie } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { getStorageProvider } from '@/lib/storage';
-
-// Allow up to 30s for this route (signed URL generation + DB queries)
+// Allow up to 30s for this route (DB queries)
 export const maxDuration = 30;
 
 // Get a single document with detail
@@ -95,14 +93,14 @@ export async function GET(
       );
     }
 
-    // Generate a signed URL for the document
-    const storage = getStorageProvider();
-    const signedUrl = await storage.getSignedUrl(document.storageKey, 3600);
+    // Use our proxy endpoint instead of Supabase signed URLs
+    // This avoids CORS/SSL issues and works with any storage provider
+    const fileUrl = `/api/knowledge-base/${kbId}/documents/${docId}/file`;
 
     return NextResponse.json({
       document: {
         ...document,
-        signedUrl,
+        signedUrl: fileUrl,
         isFavorited: document.favorites.length > 0,
       },
     });
