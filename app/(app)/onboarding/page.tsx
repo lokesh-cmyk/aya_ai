@@ -56,8 +56,9 @@ export default function OnboardingPage() {
 
   const handleComplete = () => {
     setPhase("complete");
+    localStorage.setItem("platform-tour-completed", "false");
     setTimeout(() => {
-      router.push("/dashboard");
+      router.push("/dashboard?tour=start");
     }, 1000);
   };
 

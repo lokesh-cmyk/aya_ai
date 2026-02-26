@@ -1,0 +1,99 @@
+/* components/tour/tour-styles.css */
+
+/* Override driver.js popover */
+.aya-tour-popover {
+  background: white !important;
+  border-radius: 16px !important;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.05) !important;
+  padding: 0 !important;
+  max-width: 340px !important;
+}
+
+.aya-tour-popover .driver-popover-arrow {
+  display: block;
+}
+
+/* Title area with owl */
+.aya-tour-popover .driver-popover-title {
+  font-size: 16px !important;
+  font-weight: 700 !important;
+  color: #1e293b !important;
+  padding: 20px 20px 0 20px !important;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.aya-tour-popover .driver-popover-title::before {
+  content: "\1F989";
+  font-size: 24px;
+  display: inline-block;
+  animation: owlBounce 2s ease-in-out infinite;
+}
+
+@keyframes owlBounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+
+.aya-tour-popover .driver-popover-description {
+  font-size: 14px !important;
+  color: #64748b !important;
+  line-height: 1.6 !important;
+  padding: 8px 20px 16px 20px !important;
+}
+
+/* Footer with buttons */
+.aya-tour-popover .driver-popover-footer {
+  padding: 12px 20px !important;
+  border-top: 1px solid #f1f5f9 !important;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.aya-tour-popover .driver-popover-progress-text {
+  font-size: 12px !important;
+  color: #94a3b8 !important;
+  font-weight: 500 !important;
+}
+
+.aya-tour-popover .driver-popover-prev-btn {
+  background: #f8fafc !important;
+  color: #475569 !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 8px !important;
+  padding: 6px 14px !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.aya-tour-popover .driver-popover-prev-btn:hover {
+  background: #f1f5f9 !important;
+}
+
+.aya-tour-popover .driver-popover-next-btn,
+.aya-tour-popover .driver-popover-close-btn-text {
+  background: linear-gradient(135deg, #6366f1, #8b5cf6) !important;
+  color: white !important;
+  border: none !important;
+  border-radius: 8px !important;
+  padding: 6px 14px !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.aya-tour-popover .driver-popover-next-btn:hover,
+.aya-tour-popover .driver-popover-close-btn-text:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+/* Overlay */
+.driver-overlay {
+  background: rgba(15, 23, 42, 0.6) !important;
+}

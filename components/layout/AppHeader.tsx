@@ -98,6 +98,7 @@ export function AppHeader() {
       <div className="flex items-center gap-2">
         {/* Search Shortcut Button */}
         <button
+          data-tour="command-palette-hint"
           onClick={handleOpenSearch}
           className="hidden sm:flex items-center gap-2 px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-100/80 rounded-lg transition-all duration-200 border border-gray-200/50 hover:border-gray-300 bg-white/60 backdrop-blur-sm shadow-sm hover:shadow-md"
           title="Search (Ctrl+K or Ctrl+/)"

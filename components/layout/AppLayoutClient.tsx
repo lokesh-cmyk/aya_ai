@@ -10,6 +10,7 @@ import { usePathname } from "next/navigation";
 import { HamburgerMenu } from "@/components/layout/HamburgerMenu";
 import { cn } from "@/lib/utils";
 import { CommandCenterProvider, CommandCenterSidebar } from "@/components/command-center";
+import { PlatformTourProvider } from "@/components/tour/PlatformTourProvider";
 
 export function AppLayoutClient({ children }: { children: ReactNode }) {
   const pathname = usePathname();
@@ -18,6 +19,7 @@ export function AppLayoutClient({ children }: { children: ReactNode }) {
   return (
     <PipedreamClientProvider>
       <CommandCenterProvider>
+        <PlatformTourProvider>
         <div className="flex h-screen bg-gray-50 overflow-hidden transition-all duration-300">
           {!isAIChatPage && <AppSidebar />}
           <div className="flex-1 flex flex-col overflow-hidden min-w-0 relative">
@@ -31,6 +33,7 @@ export function AppLayoutClient({ children }: { children: ReactNode }) {
           <CommandPalette />
           <CommandCenterSidebar />
         </div>
+        </PlatformTourProvider>
       </CommandCenterProvider>
     </PipedreamClientProvider>
   );

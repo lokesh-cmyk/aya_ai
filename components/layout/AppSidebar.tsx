@@ -22,8 +22,10 @@ import {
   Handshake,
   BookOpen,
   Library,
+  Compass,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTour } from "@/components/tour/PlatformTourProvider";
 import { useSession } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 
@@ -49,10 +51,27 @@ const settings = [
   { name: "Settings", href: "/settings", icon: Settings },
 ];
 
+const TOUR_MAP: Record<string, string> = {
+  "/dashboard": "nav-dashboard",
+  "/command-center": "nav-command-center",
+  "/chat": "nav-chat",
+  "/ai-chat": "nav-aya",
+  "/meetings": "nav-meetings",
+  "/inbox": "nav-inbox",
+  "/crm": "nav-crm",
+  "/vendors": "nav-vendors",
+  "/knowledge-base": "nav-kb",
+  "/playbooks": "nav-playbooks",
+  "/analytics": "nav-analytics",
+  "/contacts": "nav-contacts",
+  "/messages": "nav-messages",
+};
+
 export function AppSidebar() {
   const pathname = usePathname();
   const { data: session } = useSession();
   const [collapsed, setCollapsed] = useState(false);
+  const { startTour } = useTour();
 
   // Persist collapsed state in localStorage
   useEffect(() => {
@@ -106,7 +125,7 @@ export function AppSidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 space-y-1 px-2 py-4 overflow-y-auto">
+      <nav data-tour="sidebar-nav" className="flex-1 space-y-1 px-2 py-4 overflow-y-auto">
         {!collapsed ? (
           <>
             <div className="space-y-1">
@@ -116,6 +135,7 @@ export function AppSidebar() {
                   <Link
                     key={item.name}
                     href={item.href}
+                    data-tour={TOUR_MAP[item.href]}
                     className={cn(
                       "group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all",
                       isActive
@@ -151,6 +171,7 @@ export function AppSidebar() {
                     <Link
                       key={item.name}
                       href={item.href}
+                      data-tour={item.href === "/settings" ? "nav-settings" : undefined}
                       className={cn(
                         "group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all",
                         isActive
@@ -172,6 +193,16 @@ export function AppSidebar() {
                   );
                 })}
               </div>
+            </div>
+            <div className="border-t border-gray-200 pt-2 mt-2">
+              <button
+                data-tour="replay-tour"
+                onClick={() => startTour()}
+                className="group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all text-gray-700 hover:bg-gray-50 hover:text-gray-900 w-full"
+              >
+                <Compass className="h-5 w-5 flex-shrink-0 text-gray-400 group-hover:text-gray-500" />
+                <span className="flex-1 text-left">Platform Tour</span>
+              </button>
             </div>
           </>
         ) : (
@@ -223,6 +254,16 @@ export function AppSidebar() {
                   </Link>
                 );
               })}
+            </div>
+            <div className="border-t border-gray-200 pt-2 mt-2">
+              <button
+                data-tour="replay-tour"
+                onClick={() => startTour()}
+                className="flex items-center justify-center rounded-lg p-2.5 transition-all text-gray-700 hover:bg-gray-50 w-full"
+                title="Platform Tour"
+              >
+                <Compass className="h-5 w-5 text-gray-400" />
+              </button>
             </div>
           </div>
         )}

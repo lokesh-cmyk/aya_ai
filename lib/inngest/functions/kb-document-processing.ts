@@ -66,9 +66,11 @@ export const processKBDocument = inngest.createFunction(
         case KBFileType.PDF: {
           const storage = getStorageProvider();
           const buffer = await storage.download(document.storageKey);
-          const pdfParse = (await import("pdf-parse")).default;
-          const parsed = await pdfParse(buffer);
-          return parsed.text;
+          const { PDFParse } = await import("pdf-parse");
+          const parser = new PDFParse({ data: new Uint8Array(buffer) });
+          const result = await parser.getText();
+          await parser.destroy();
+          return result.text;
         }
 
         case KBFileType.IMAGE:
@@ -119,7 +121,7 @@ export const processKBDocument = inngest.createFunction(
         },
       }));
 
-      await index.namespace(teamId).upsert(vectors);
+      await index.namespace(teamId).upsert({ records: vectors });
 
       await prisma.kBDocument.update({
         where: { id: documentId },
