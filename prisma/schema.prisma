@@ -41,70 +41,77 @@ enum MessageDirection {
 }
 
 model User {
-  id                  String    @id @default(cuid())
-  email               String    @unique
-  name                String?
-  emailVerified       Boolean   @default(false)
-  image               String?
-  role                UserRole  @default(EDITOR)
-  timezone            String?   @default("UTC") // IANA timezone (e.g., "America/New_York", "Europe/London")
-  onboardingCompleted Boolean   @default(false) // Set to true after user completes onboarding
-  whatsappPhone       String?   @unique
-  whatsappLinkedAt    DateTime?
-  whatsappDigestEnabled Boolean @default(true)
-  whatsappMeetingSummaryEnabled Boolean @default(false)
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
-  
-  messages      Message[]
-  notes         Note[]
-  teamId        String?
-  team          Team?     @relation(fields: [teamId], references: [id])
-  sessions      Session[] @relation("UserSessions")
-  accounts      Account[] @relation("UserAccounts")
-  
+  id                            String    @id @default(cuid())
+  email                         String    @unique
+  name                          String?
+  emailVerified                 Boolean   @default(false)
+  image                         String?
+  role                          UserRole  @default(EDITOR)
+  timezone                      String?   @default("UTC") // IANA timezone (e.g., "America/New_York", "Europe/London")
+  onboardingCompleted           Boolean   @default(false) // Set to true after user completes onboarding
+  whatsappPhone                 String?   @unique
+  whatsappLinkedAt              DateTime?
+  whatsappDigestEnabled         Boolean   @default(true)
+  whatsappMeetingSummaryEnabled Boolean   @default(false)
+  createdAt                     DateTime  @default(now())
+  updatedAt                     DateTime  @updatedAt
+
+  messages Message[]
+  notes    Note[]
+  teamId   String?
+  team     Team?     @relation(fields: [teamId], references: [id])
+  sessions Session[] @relation("UserSessions")
+  accounts Account[] @relation("UserAccounts")
+
   // CRM relations
-  createdSpaces Space[]    @relation("SpaceCreator")
+  createdSpaces Space[]       @relation("SpaceCreator")
   spaceMembers  SpaceMember[] @relation("SpaceMembers")
-  assignedTasks Task[]    @relation("TaskAssignee")
-  createdTasks  Task[]    @relation("TaskCreator")
-  taskComments TaskComment[] @relation("TaskCommentAuthor")
-  
+  assignedTasks Task[]        @relation("TaskAssignee")
+  createdTasks  Task[]        @relation("TaskCreator")
+  taskComments  TaskComment[] @relation("TaskCommentAuthor")
+
   // Chat relations
-  teamChats     TeamChat[] @relation("TeamChatSender")
-  chatReads     TeamChatRead[] @relation("TeamChatReads")
-  
+  teamChats TeamChat[]     @relation("TeamChatSender")
+  chatReads TeamChatRead[] @relation("TeamChatReads")
+
   // Notifications
   notifications Notification[] @relation("UserNotifications")
-  
+
   // AI Chat relations
   aiChatConversations AIChatConversation[] @relation("AIChatUser")
 
   // Meeting relations
-  meetings            Meeting[]
-  meetingBotSettings  MeetingBotSettings?
+  meetings           Meeting[]
+  meetingBotSettings MeetingBotSettings?
 
   // Command Center relations
-  signalDismissals    SignalDismissal[]
+  signalDismissals SignalDismissal[]
 
   // Task watching and reactions
-  watchedTasks        TaskWatcher[]
-  commentReactions    TaskCommentReaction[]
+  watchedTasks     TaskWatcher[]
+  commentReactions TaskCommentReaction[]
 
   // WhatsApp relations
   whatsappConversations WhatsAppConversation[]
-  whatsappSessions      WhatsAppSession[] @relation("UserWhatsAppSessions")
+  whatsappSessions      WhatsAppSession[]      @relation("UserWhatsAppSessions")
   userNotes             UserNote[]
   reminders             Reminder[]
 
   // Feedback
-  feedbacks             Feedback[]
+  feedbacks Feedback[]
 
   // Vendor relations
-  createdVendors         Vendor[]         @relation("VendorCreator")
-  createdChangeRequests  ChangeRequest[]  @relation("ChangeRequestCreator")
-  approvedChangeRequests ChangeRequest[]  @relation("ChangeRequestApprover")
-  createdRisks           Risk[]           @relation("RiskCreator")
+  createdVendors         Vendor[]        @relation("VendorCreator")
+  createdChangeRequests  ChangeRequest[] @relation("ChangeRequestCreator")
+  approvedChangeRequests ChangeRequest[] @relation("ChangeRequestApprover")
+  createdRisks           Risk[]          @relation("RiskCreator")
+
+  // Knowledge Base relations
+  createdKnowledgeBases KnowledgeBase[]     @relation("KBCreatedBy")
+  createdKBFolders      KBFolder[]          @relation("KBFolderCreatedBy")
+  uploadedKBDocuments   KBDocument[]        @relation("KBDocUploadedBy")
+  uploadedKBVersions    KBDocumentVersion[] @relation("KBVersionUploadedBy")
+  kbFavorites           KBFavorite[]
 
   @@index([teamId])
   @@index([email])
@@ -116,31 +123,32 @@ model Team {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  users     User[]
-  contacts  Contact[]
-  invites   TeamInvite[]
-  spaces    Space[]
-  chats     TeamChat[]
-  meetings  Meeting[]
-  vendors   Vendor[]
-  playbooks Playbook[]
+  users          User[]
+  contacts       Contact[]
+  invites        TeamInvite[]
+  spaces         Space[]
+  chats          TeamChat[]
+  meetings       Meeting[]
+  vendors        Vendor[]
+  playbooks      Playbook[]
+  knowledgeBases KnowledgeBase[]
 }
 
 model TeamInvite {
-  id          String   @id @default(cuid())
-  email       String
-  teamId      String
-  invitedBy   String
-  role        UserRole @default(EDITOR)
-  token       String   @unique
-  teamCode    String   @unique
-  expiresAt   DateTime
-  acceptedAt  DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  team        Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  
+  id         String    @id @default(cuid())
+  email      String
+  teamId     String
+  invitedBy  String
+  role       UserRole  @default(EDITOR)
+  token      String    @unique
+  teamCode   String    @unique
+  expiresAt  DateTime
+  acceptedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
   @@unique([email, teamId])
   @@index([token])
   @@index([teamCode])
@@ -149,55 +157,55 @@ model TeamInvite {
 }
 
 model Contact {
-  id              String    @id @default(cuid())
-  name            String?
-  phone           String?
-  email           String?
-  twitterHandle   String?
-  facebookId      String?
-  tags            String[]
-  customFields    Json?
-  isVerified      Boolean   @default(false)
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-  
-  teamId          String?
-  team            Team?     @relation(fields: [teamId], references: [id])
-  
-  messages        Message[]
-  notes           Note[]
-  
+  id            String   @id @default(cuid())
+  name          String?
+  phone         String?
+  email         String?
+  twitterHandle String?
+  facebookId    String?
+  tags          String[]
+  customFields  Json?
+  isVerified    Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  teamId String?
+  team   Team?   @relation(fields: [teamId], references: [id])
+
+  messages Message[]
+  notes    Note[]
+
   @@index([phone])
   @@index([email])
   @@index([teamId])
 }
 
 model Message {
-  id              String           @id @default(cuid())
-  content         String
-  channel         MessageChannel
-  direction       MessageDirection
-  status          MessageStatus    @default(SENT)
-  externalId      String?
-  metadata        Json?
-  mediaUrls       String[]
-  scheduledFor    DateTime?
-  sentAt          DateTime?
-  deliveredAt     DateTime?
-  readAt          DateTime?
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
-  
-  contactId       String
-  contact         Contact          @relation(fields: [contactId], references: [id], onDelete: Cascade)
-  
-  userId          String?
-  user            User?            @relation(fields: [userId], references: [id])
-  
-  parentId        String?
-  parent          Message?         @relation("MessageThread", fields: [parentId], references: [id])
-  replies         Message[]        @relation("MessageThread")
-  
+  id           String           @id @default(cuid())
+  content      String
+  channel      MessageChannel
+  direction    MessageDirection
+  status       MessageStatus    @default(SENT)
+  externalId   String?
+  metadata     Json?
+  mediaUrls    String[]
+  scheduledFor DateTime?
+  sentAt       DateTime?
+  deliveredAt  DateTime?
+  readAt       DateTime?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  contactId String
+  contact   Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id])
+
+  parentId String?
+  parent   Message?  @relation("MessageThread", fields: [parentId], references: [id])
+  replies  Message[] @relation("MessageThread")
+
   @@index([contactId])
   @@index([channel])
   @@index([status])
@@ -207,46 +215,46 @@ model Message {
 }
 
 model Note {
-  id          String    @id @default(cuid())
-  content     String
-  isPrivate   Boolean   @default(false)
-  mentions    String[]
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  
-  contactId   String
-  contact     Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
-  
-  authorId    String
-  author      User      @relation(fields: [authorId], references: [id])
-  
-  parentId    String?
-  parent      Note?     @relation("NoteThread", fields: [parentId], references: [id])
-  replies     Note[]    @relation("NoteThread")
-  
+  id        String   @id @default(cuid())
+  content   String
+  isPrivate Boolean  @default(false)
+  mentions  String[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  contactId String
+  contact   Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  authorId String
+  author   User   @relation(fields: [authorId], references: [id])
+
+  parentId String?
+  parent   Note?   @relation("NoteThread", fields: [parentId], references: [id])
+  replies  Note[]  @relation("NoteThread")
+
   @@index([contactId])
   @@index([authorId])
 }
 
 model Integration {
-  id          String   @id @default(cuid())
-  name        String   // e.g., "gmail", "outlook", "slack"
-  type        String   // e.g., "pipedream", "oauth", "api_key"
-  config      Json     // Platform-specific configuration
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
+  id        String   @id @default(cuid())
+  name      String // e.g., "gmail", "outlook", "slack"
+  type      String // e.g., "pipedream", "oauth", "api_key"
+  config    Json // Platform-specific configuration
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   // OAuth credentials - stored securely
-  accessToken       String?   // Current access token
-  refreshToken      String?   // Refresh token for renewing access
-  tokenExpiresAt    DateTime? // When the access token expires
-  
+  accessToken    String? // Current access token
+  refreshToken   String? // Refresh token for renewing access
+  tokenExpiresAt DateTime? // When the access token expires
+
   // Metadata
-  accountId         String?   // External account/app ID from provider
-  userId            String?   // Which user this integration belongs to
-  teamId            String?   // Which team this integration belongs to
-  
+  accountId String? // External account/app ID from provider
+  userId    String? // Which user this integration belongs to
+  teamId    String? // Which team this integration belongs to
+
   @@unique([name, type, userId, teamId])
   @@index([userId])
   @@index([teamId])
@@ -254,26 +262,26 @@ model Integration {
 }
 
 model Analytics {
-  id              String   @id @default(cuid())
-  channel         MessageChannel
-  metric          String
-  value           Float
-  metadata        Json?
-  recordedAt      DateTime @default(now())
-  
+  id         String         @id @default(cuid())
+  channel    MessageChannel
+  metric     String
+  value      Float
+  metadata   Json?
+  recordedAt DateTime       @default(now())
+
   @@index([channel])
   @@index([metric])
   @@index([recordedAt])
 }
 
 model Webhook {
-  id          String   @id @default(cuid())
-  source      String
-  payload     Json
-  processed   Boolean  @default(false)
-  error       String?
-  createdAt   DateTime @default(now())
-  
+  id        String   @id @default(cuid())
+  source    String
+  payload   Json
+  processed Boolean  @default(false)
+  error     String?
+  createdAt DateTime @default(now())
+
   @@index([source])
   @@index([processed])
 }
@@ -296,19 +304,19 @@ model Session {
 }
 
 model Account {
-  id                String  @id @default(cuid())
-  accountId         String
-  providerId        String
-  userId            String
-  accessToken       String?
-  refreshToken      String?
-  idToken           String?
-  accessTokenExpiresAt DateTime?
+  id                    String    @id @default(cuid())
+  accountId             String
+  providerId            String
+  userId                String
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
   refreshTokenExpiresAt DateTime?
-  scope             String?
-  password          String?
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
 
   user User @relation("UserAccounts", fields: [userId], references: [id], onDelete: Cascade)
 
@@ -322,7 +330,7 @@ model Verification {
   value      String
   expiresAt  DateTime
   createdAt  DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  updatedAt  DateTime @updatedAt
 
   @@unique([identifier, value])
   @@index([identifier])
@@ -355,20 +363,24 @@ model Space {
   id          String   @id @default(cuid())
   name        String
   description String?
-  color       String?  // For UI color coding
+  color       String? // For UI color coding
   isArchived  Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  
-  teamId      String?
-  team        Team?    @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  createdBy   String
-  creator     User     @relation("SpaceCreator", fields: [createdBy], references: [id])
-  
-  folders     Folder[]
-  taskLists   TaskList[]
-  members     SpaceMember[]
-  
+
+  teamId    String?
+  team      Team?   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  createdBy String
+  creator   User    @relation("SpaceCreator", fields: [createdBy], references: [id])
+
+  folders   Folder[]
+  taskLists TaskList[]
+  members   SpaceMember[]
+
+  // Knowledge Base relations
+  kbFolders         KBFolder[]
+  kbProjectSettings KBProjectSettings?
+
   @@index([teamId])
   @@index([createdBy])
 }
@@ -379,10 +391,10 @@ model SpaceMember {
   userId    String
   role      UserRole @default(EDITOR)
   createdAt DateTime @default(now())
-  
-  space     Space    @relation(fields: [spaceId], references: [id], onDelete: Cascade)
-  user      User     @relation("SpaceMembers", fields: [userId], references: [id], onDelete: Cascade)
-  
+
+  space Space @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  user  User  @relation("SpaceMembers", fields: [userId], references: [id], onDelete: Cascade)
+
   @@unique([spaceId, userId])
   @@index([spaceId])
   @@index([userId])
@@ -395,48 +407,48 @@ model Folder {
   order       Int      @default(0)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  
-  spaceId     String
-  space       Space    @relation(fields: [spaceId], references: [id], onDelete: Cascade)
-  
-  taskLists   TaskList[]
-  
+
+  spaceId String
+  space   Space  @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+
+  taskLists TaskList[]
+
   @@index([spaceId])
 }
 
 model TaskList {
-  id          String        @id @default(cuid())
+  id          String       @id @default(cuid())
   name        String
   type        TaskListType
   description String?
-  order       Int           @default(0)
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-  
-  spaceId     String?
-  space       Space?        @relation(fields: [spaceId], references: [id], onDelete: Cascade)
-  folderId    String?
-  folder      Folder?       @relation(fields: [folderId], references: [id], onDelete: Cascade)
-  
-  tasks       Task[]
-  statuses    TaskStatusColumn[]
-  
+  order       Int          @default(0)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  spaceId  String?
+  space    Space?  @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  folderId String?
+  folder   Folder? @relation(fields: [folderId], references: [id], onDelete: Cascade)
+
+  tasks    Task[]
+  statuses TaskStatusColumn[]
+
   @@index([spaceId])
   @@index([folderId])
 }
 
 model TaskStatusColumn {
-  id          String   @id @default(cuid())
-  name        String
-  color       String?  // For UI color coding
-  order       Int      @default(0)
-  createdAt   DateTime @default(now())
-  
-  taskListId  String
-  taskList    TaskList @relation(fields: [taskListId], references: [id], onDelete: Cascade)
-  
-  tasks       Task[]
-  
+  id        String   @id @default(cuid())
+  name      String
+  color     String? // For UI color coding
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+
+  taskListId String
+  taskList   TaskList @relation(fields: [taskListId], references: [id], onDelete: Cascade)
+
+  tasks Task[]
+
   @@index([taskListId])
 }
 
@@ -444,30 +456,30 @@ model Task {
   id          String       @id @default(cuid())
   name        String
   description String?
-  taskId      String?      // Custom task ID like "5bxr"
+  taskId      String? // Custom task ID like "5bxr"
   priority    TaskPriority @default(NORMAL)
   progress    Int          @default(0) // 0-100
-  complexity  Int?         // 1-5 stars
+  complexity  Int? // 1-5 stars
   dueDate     DateTime?
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
-  
-  taskListId  String
-  taskList    TaskList     @relation(fields: [taskListId], references: [id], onDelete: Cascade)
-  
-  statusId     String?
-  status       TaskStatusColumn? @relation(fields: [statusId], references: [id], onDelete: SetNull)
-  
-  assigneeId   String?
-  assignee     User?       @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
-  
-  createdById  String
-  creator      User        @relation("TaskCreator", fields: [createdById], references: [id])
-  
-  comments     TaskComment[]
-  tags         String[]
-  metadata     Json?       // For custom fields
-  watchers     TaskWatcher[]
+
+  taskListId String
+  taskList   TaskList @relation(fields: [taskListId], references: [id], onDelete: Cascade)
+
+  statusId String?
+  status   TaskStatusColumn? @relation(fields: [statusId], references: [id], onDelete: SetNull)
+
+  assigneeId String?
+  assignee   User?   @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+
+  createdById String
+  creator     User   @relation("TaskCreator", fields: [createdById], references: [id])
+
+  comments TaskComment[]
+  tags     String[]
+  metadata Json? // For custom fields
+  watchers TaskWatcher[]
 
   @@index([taskListId])
   @@index([statusId])
@@ -477,50 +489,50 @@ model Task {
 }
 
 model TaskComment {
-  id          String   @id @default(cuid())
-  content     String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(cuid())
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  taskId      String
-  task        Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  taskId String
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
-  authorId    String
-  author      User     @relation("TaskCommentAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  authorId String
+  author   User   @relation("TaskCommentAuthor", fields: [authorId], references: [id], onDelete: Cascade)
 
-  parentId    String?
-  parent      TaskComment? @relation("CommentThread", fields: [parentId], references: [id])
-  replies     TaskComment[] @relation("CommentThread")
-  reactions   TaskCommentReaction[]
+  parentId  String?
+  parent    TaskComment?          @relation("CommentThread", fields: [parentId], references: [id])
+  replies   TaskComment[]         @relation("CommentThread")
+  reactions TaskCommentReaction[]
 
   @@index([taskId])
   @@index([authorId])
 }
 
 model TeamChat {
-  id          String   @id @default(cuid())
-  content     String
-  type        String   @default("text") // text, file, audio, image
-  fileUrl     String?
-  fileName    String?
-  fileSize    Int?
-  mimeType    String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  readAt      DateTime?
-  
-  teamId      String
-  team        Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  
-  senderId    String
-  sender      User     @relation("TeamChatSender", fields: [senderId], references: [id], onDelete: Cascade)
-  
-  parentId    String?
-  parent      TeamChat? @relation("ChatThread", fields: [parentId], references: [id])
-  replies     TeamChat[] @relation("ChatThread")
-  
-  readBy      TeamChatRead[] @relation("TeamChatReads")
-  
+  id        String    @id @default(cuid())
+  content   String
+  type      String    @default("text") // text, file, audio, image
+  fileUrl   String?
+  fileName  String?
+  fileSize  Int?
+  mimeType  String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  readAt    DateTime?
+
+  teamId String
+  team   Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  senderId String
+  sender   User   @relation("TeamChatSender", fields: [senderId], references: [id], onDelete: Cascade)
+
+  parentId String?
+  parent   TeamChat?  @relation("ChatThread", fields: [parentId], references: [id])
+  replies  TeamChat[] @relation("ChatThread")
+
+  readBy TeamChatRead[] @relation("TeamChatReads")
+
   @@index([teamId])
   @@index([senderId])
   @@index([createdAt])
@@ -528,35 +540,35 @@ model TeamChat {
 }
 
 model TeamChatRead {
-  id          String   @id @default(cuid())
-  readAt      DateTime @default(now())
-  
-  chatId      String
-  chat        TeamChat @relation("TeamChatReads", fields: [chatId], references: [id], onDelete: Cascade)
-  
-  userId      String
-  user        User     @relation("TeamChatReads", fields: [userId], references: [id], onDelete: Cascade)
-  
+  id     String   @id @default(cuid())
+  readAt DateTime @default(now())
+
+  chatId String
+  chat   TeamChat @relation("TeamChatReads", fields: [chatId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation("TeamChatReads", fields: [userId], references: [id], onDelete: Cascade)
+
   @@unique([chatId, userId])
   @@index([chatId])
   @@index([userId])
 }
 
 model Notification {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   title     String
   message   String
-  type      String   @default("info") // info, success, warning, error
-  read      Boolean  @default(false)
+  type      String    @default("info") // info, success, warning, error
+  read      Boolean   @default(false)
   readAt    DateTime?
-  link      String?  // Optional link to navigate to
-  metadata  Json?    // Additional data
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  
-  userId    String
-  user      User     @relation("UserNotifications", fields: [userId], references: [id], onDelete: Cascade)
-  
+  link      String? // Optional link to navigate to
+  metadata  Json? // Additional data
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  userId String
+  user   User   @relation("UserNotifications", fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([userId])
   @@index([read])
   @@index([createdAt])
@@ -564,31 +576,31 @@ model Notification {
 
 // AI Chat Models
 model AIChatConversation {
-  id          String   @id @default(cuid())
-  title       String?  // Auto-generated from first message or user-provided
-  model       String   @default("sonnet-4.5") // AI model used
-  metadata    Json?    // Additional conversation metadata
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  userId      String
-  user        User     @relation("AIChatUser", fields: [userId], references: [id], onDelete: Cascade)
-  
-  messages    AIChatMessage[]
-  
+  id        String   @id @default(cuid())
+  title     String? // Auto-generated from first message or user-provided
+  model     String   @default("sonnet-4.5") // AI model used
+  metadata  Json? // Additional conversation metadata
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userId String
+  user   User   @relation("AIChatUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  messages AIChatMessage[]
+
   @@index([userId])
   @@index([createdAt])
   @@index([updatedAt])
 }
 
 model AIChatMessage {
-  id            String   @id @default(cuid())
-  role          String   // "user" or "assistant"
-  content       String   // Message content
-  model         String?  // AI model used for this message
-  metadata      Json?    // Additional message metadata (files, thinking, etc.)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id        String   @id @default(cuid())
+  role      String // "user" or "assistant"
+  content   String // Message content
+  model     String? // AI model used for this message
+  metadata  Json? // Additional message metadata (files, thinking, etc.)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   conversationId String
   conversation   AIChatConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
@@ -599,13 +611,13 @@ model AIChatMessage {
 
 // Meeting Bot Models
 enum MeetingStatus {
-  SCHEDULED    // Bot is scheduled to join
-  JOINING      // Bot is currently joining
-  IN_PROGRESS  // Meeting is active, bot is recording
-  PROCESSING   // Meeting ended, processing transcript
-  COMPLETED    // Transcript and insights ready
-  FAILED       // Bot failed to join or record
-  CANCELLED    // Meeting was cancelled
+  SCHEDULED // Bot is scheduled to join
+  JOINING // Bot is currently joining
+  IN_PROGRESS // Meeting is active, bot is recording
+  PROCESSING // Meeting ended, processing transcript
+  COMPLETED // Transcript and insights ready
+  FAILED // Bot failed to join or record
+  CANCELLED // Meeting was cancelled
 }
 
 enum MeetingPlatform {
@@ -623,54 +635,54 @@ enum RecordingMode {
 model MeetingBotSettings {
   id              String        @id @default(cuid())
   botName         String        @default("AYA Meeting Assistant")
-  botImage        String?       // Avatar URL for the bot
-  entryMessage    String?       // Message bot sends when joining
+  botImage        String? // Avatar URL for the bot
+  entryMessage    String? // Message bot sends when joining
   recordingMode   RecordingMode @default(SPEAKER_VIEW)
   autoJoinEnabled Boolean       @default(true) // Auto-join calendar meetings
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
-  userId          String        @unique
-  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
 }
 
 model Meeting {
-  id                String          @id @default(cuid())
-  title             String
-  description       String?
-  meetingUrl        String          // Google Meet/Zoom/Teams URL
-  platform          MeetingPlatform
-  status            MeetingStatus   @default(SCHEDULED)
-  scheduledStart    DateTime
-  scheduledEnd      DateTime?
-  actualStart       DateTime?
-  actualEnd         DateTime?
-  duration          Int?            // Duration in seconds
+  id             String          @id @default(cuid())
+  title          String
+  description    String?
+  meetingUrl     String // Google Meet/Zoom/Teams URL
+  platform       MeetingPlatform
+  status         MeetingStatus   @default(SCHEDULED)
+  scheduledStart DateTime
+  scheduledEnd   DateTime?
+  actualStart    DateTime?
+  actualEnd      DateTime?
+  duration       Int? // Duration in seconds
 
   // MeetingBaas references
-  botId             String?         // MeetingBaas bot ID
-  calendarEventId   String?         // Google Calendar event ID
-  recordingUrl      String?         // URL to the recording
-  botExcluded       Boolean         @default(false) // User opted out of bot for this meeting
+  botId           String? // MeetingBaas bot ID
+  calendarEventId String? // Google Calendar event ID
+  recordingUrl    String? // URL to the recording
+  botExcluded     Boolean @default(false) // User opted out of bot for this meeting
 
   // Metadata
-  errorMessage      String?         // Error details if failed
-  metadata          Json?           // Additional platform-specific data
-  whatsappSummarySentAt DateTime?   // Prevents duplicate WhatsApp summary sends
-  createdAt         DateTime        @default(now())
-  updatedAt         DateTime        @updatedAt
+  errorMessage          String? // Error details if failed
+  metadata              Json? // Additional platform-specific data
+  whatsappSummarySentAt DateTime? // Prevents duplicate WhatsApp summary sends
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
 
   // Relations
-  userId            String
-  user              User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  teamId            String?
-  team              Team?           @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  userId String
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  teamId String?
+  team   Team?   @relation(fields: [teamId], references: [id], onDelete: SetNull)
 
-  transcript        MeetingTranscript?
-  insights          MeetingInsight[]
-  participants      MeetingParticipant[]
+  transcript   MeetingTranscript?
+  insights     MeetingInsight[]
+  participants MeetingParticipant[]
 
   @@index([userId])
   @@index([teamId])
@@ -681,46 +693,46 @@ model Meeting {
 }
 
 model MeetingTranscript {
-  id            String   @id @default(cuid())
-  fullText      String   // Complete transcript text
-  segments      Json     // Array of {speaker, text, startTime, endTime}
-  language      String?  @default("en")
-  wordCount     Int?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id        String   @id @default(cuid())
+  fullText  String // Complete transcript text
+  segments  Json // Array of {speaker, text, startTime, endTime}
+  language  String?  @default("en")
+  wordCount Int?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  meetingId     String   @unique
-  meeting       Meeting  @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  meetingId String  @unique
+  meeting   Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
 
   @@index([meetingId])
 }
 
 model MeetingInsight {
-  id              String   @id @default(cuid())
-  type            String   // "summary", "action_items", "key_topics", "decisions", "questions"
-  content         String   // The insight content (can be JSON for structured data)
-  confidence      Float?   // AI confidence score
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id         String   @id @default(cuid())
+  type       String // "summary", "action_items", "key_topics", "decisions", "questions"
+  content    String // The insight content (can be JSON for structured data)
+  confidence Float? // AI confidence score
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
-  meetingId       String
-  meeting         Meeting  @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  meetingId String
+  meeting   Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
 
   @@index([meetingId])
   @@index([type])
 }
 
 model MeetingParticipant {
-  id            String   @id @default(cuid())
-  name          String
-  email         String?
-  joinedAt      DateTime?
-  leftAt        DateTime?
-  speakingTime  Int?     // Speaking time in seconds
-  createdAt     DateTime @default(now())
+  id           String    @id @default(cuid())
+  name         String
+  email        String?
+  joinedAt     DateTime?
+  leftAt       DateTime?
+  speakingTime Int? // Speaking time in seconds
+  createdAt    DateTime  @default(now())
 
-  meetingId     String
-  meeting       Meeting  @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  meetingId String
+  meeting   Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
 
   @@index([meetingId])
   @@index([email])
@@ -730,12 +742,12 @@ model MeetingParticipant {
 model SignalDismissal {
   id          String    @id @default(cuid())
   userId      String
-  signalKey   String    // "task:123:blocked" - unique identifier for signal
-  type        String    // "dismiss" | "snooze" | "acknowledge"
+  signalKey   String // "task:123:blocked" - unique identifier for signal
+  type        String // "dismiss" | "snooze" | "acknowledge"
   snoozeUntil DateTime?
   createdAt   DateTime  @default(now())
 
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, signalKey])
   @@index([userId])
@@ -749,8 +761,8 @@ model TaskWatcher {
   userId    String
   createdAt DateTime @default(now())
 
-  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([taskId, userId])
   @@index([taskId])
@@ -760,13 +772,13 @@ model TaskWatcher {
 // Comment reactions (likes/dislikes)
 model TaskCommentReaction {
   id        String   @id @default(cuid())
-  type      String   // "like" | "dislike"
+  type      String // "like" | "dislike"
   commentId String
   userId    String
   createdAt DateTime @default(now())
 
-  comment   TaskComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
-  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  comment TaskComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user    User        @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([commentId, userId])
   @@index([commentId])
@@ -784,21 +796,21 @@ model WhatsAppConversation {
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
-  messages          WhatsAppMessage[]
+  messages WhatsAppMessage[]
 
   @@index([userId])
   @@index([isActive])
 }
 
 model WhatsAppMessage {
-  id             String   @id @default(cuid())
+  id             String               @id @default(cuid())
   conversationId String
   conversation   WhatsAppConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  role           String   // "user" | "assistant"
+  role           String // "user" | "assistant"
   content        String
-  wahaMessageId  String?  @unique
+  wahaMessageId  String?              @unique
   metadata       Json?
-  createdAt      DateTime @default(now())
+  createdAt      DateTime             @default(now())
 
   @@index([conversationId])
   @@index([wahaMessageId])
@@ -821,22 +833,22 @@ model UserNote {
 }
 
 model Reminder {
-  id           String    @id @default(cuid())
-  userId       String
-  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  title        String
-  description  String?
-  remindAt     DateTime
-  timezone     String
-  rrule        String?
-  status       String    @default("active")
-  pingSent24h  Boolean   @default(false)
-  pingSent30m  Boolean   @default(false)
-  lastPingAt   DateTime?
-  source       String    @default("whatsapp")
-  metadata     Json?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  remindAt    DateTime
+  timezone    String
+  rrule       String?
+  status      String    @default("active")
+  pingSent24h Boolean   @default(false)
+  pingSent30m Boolean   @default(false)
+  lastPingAt  DateTime?
+  source      String    @default("whatsapp")
+  metadata    Json?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   @@index([userId])
   @@index([status, remindAt])
@@ -847,9 +859,9 @@ model WhatsAppSession {
   id            String    @id @default(cuid())
   userId        String
   user          User      @relation("UserWhatsAppSessions", fields: [userId], references: [id], onDelete: Cascade)
-  slot          Int       // 1, 2, or 3
-  phone         String?   // populated after successful connection
-  displayName   String?   // WhatsApp profile name
+  slot          Int // 1, 2, or 3
+  phone         String? // populated after successful connection
+  displayName   String? // WhatsApp profile name
   profilePicUrl String?
   status        String    @default("disconnected") // disconnected | connecting | qr_ready | connected
   lastSeen      DateTime?
@@ -864,22 +876,22 @@ model WhatsAppSession {
 
 model WhatsAppAuth {
   id        String   @id // matches WhatsAppSession.id
-  creds     Json     // Baileys auth credentials blob
-  keys      Json     // Baileys signal keys blob
+  creds     Json // Baileys auth credentials blob
+  keys      Json // Baileys signal keys blob
   updatedAt DateTime @updatedAt
 }
 
 model Feedback {
   id        String   @id @default(cuid())
-  type      String   // bug, feature, general, question
+  type      String // bug, feature, general, question
   subject   String
   message   String
   status    String   @default("open") // open, reviewed, resolved
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([type])
@@ -947,32 +959,32 @@ enum RiskStatus {
 }
 
 model Vendor {
-  id              String        @id @default(cuid())
-  name            String
-  category        String
-  status          VendorStatus  @default(ONBOARDING)
-  website         String?
-  description     String?
-  contractStart   DateTime?
-  contractEnd     DateTime?
-  renewalDate     DateTime?
-  renewalType     RenewalType   @default(MANUAL)
-  billingCycle    BillingCycle  @default(MONTHLY)
-  contractValue   Float?
-  tags            String[]
-  customFields    Json?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  id            String       @id @default(cuid())
+  name          String
+  category      String
+  status        VendorStatus @default(ONBOARDING)
+  website       String?
+  description   String?
+  contractStart DateTime?
+  contractEnd   DateTime?
+  renewalDate   DateTime?
+  renewalType   RenewalType  @default(MANUAL)
+  billingCycle  BillingCycle @default(MONTHLY)
+  contractValue Float?
+  tags          String[]
+  customFields  Json?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
 
-  teamId          String
-  team            Team          @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  createdById     String
-  createdBy       User          @relation("VendorCreator", fields: [createdById], references: [id])
+  teamId      String
+  team        Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  createdById String
+  createdBy   User   @relation("VendorCreator", fields: [createdById], references: [id])
 
-  contacts        VendorContact[]
-  slas            SLA[]
-  changeRequests  ChangeRequest[]
-  risks           Risk[]
+  contacts       VendorContact[]
+  slas           SLA[]
+  changeRequests ChangeRequest[]
+  risks          Risk[]
 
   @@index([teamId])
   @@index([status])
@@ -981,65 +993,65 @@ model Vendor {
 }
 
 model VendorContact {
-  id          String    @id @default(cuid())
-  name        String
-  email       String?
-  phone       String?
-  role        String?
-  isPrimary   Boolean   @default(false)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id        String   @id @default(cuid())
+  name      String
+  email     String?
+  phone     String?
+  role      String?
+  isPrimary Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  vendorId    String
-  vendor      Vendor    @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  vendorId String
+  vendor   Vendor @relation(fields: [vendorId], references: [id], onDelete: Cascade)
 
   @@index([vendorId])
   @@index([email])
 }
 
 model SLA {
-  id              String      @id @default(cuid())
-  name            String
-  description     String?
-  metric          String
-  target          String
-  currentValue    String?
-  status          SLAStatus   @default(MET)
-  lastMeasuredAt  DateTime?
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
+  id             String    @id @default(cuid())
+  name           String
+  description    String?
+  metric         String
+  target         String
+  currentValue   String?
+  status         SLAStatus @default(MET)
+  lastMeasuredAt DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
-  vendorId        String
-  vendor          Vendor      @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  vendorId String
+  vendor   Vendor @relation(fields: [vendorId], references: [id], onDelete: Cascade)
 
   @@index([vendorId])
   @@index([status])
 }
 
 model ChangeRequest {
-  id               String                @id @default(cuid())
-  title            String
-  description      String?
-  requestedBy      String?
-  status           ChangeRequestStatus   @default(DRAFT)
-  priority         ChangeRequestPriority @default(NORMAL)
-  originalPlan     Json?
-  requestedChange  Json?
-  impactAnalysis   Json?
-  approvedAt       DateTime?
-  rejectedReason   String?
-  sourceMessageId  String?
-  createdAt        DateTime              @default(now())
-  updatedAt        DateTime              @updatedAt
+  id              String                @id @default(cuid())
+  title           String
+  description     String?
+  requestedBy     String?
+  status          ChangeRequestStatus   @default(DRAFT)
+  priority        ChangeRequestPriority @default(NORMAL)
+  originalPlan    Json?
+  requestedChange Json?
+  impactAnalysis  Json?
+  approvedAt      DateTime?
+  rejectedReason  String?
+  sourceMessageId String?
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
 
-  vendorId         String
-  vendor           Vendor                @relation(fields: [vendorId], references: [id], onDelete: Cascade)
-  createdById      String
-  createdBy        User                  @relation("ChangeRequestCreator", fields: [createdById], references: [id])
-  approvedById     String?
-  approvedBy       User?                 @relation("ChangeRequestApprover", fields: [approvedById], references: [id])
+  vendorId     String
+  vendor       Vendor  @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  createdById  String
+  createdBy    User    @relation("ChangeRequestCreator", fields: [createdById], references: [id])
+  approvedById String?
+  approvedBy   User?   @relation("ChangeRequestApprover", fields: [approvedById], references: [id])
 
-  risks            Risk[]
+  risks Risk[]
 
   @@index([vendorId])
   @@index([status])
@@ -1049,25 +1061,25 @@ model ChangeRequest {
 }
 
 model Risk {
-  id              String        @id @default(cuid())
-  title           String
-  description     String?
-  probability     Int
-  impact          Int
-  riskScore       Int
-  category        RiskCategory
-  status          RiskStatus    @default(OPEN)
-  mitigationPlan  String?
-  aiSuggestions   Json?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  id             String       @id @default(cuid())
+  title          String
+  description    String?
+  probability    Int
+  impact         Int
+  riskScore      Int
+  category       RiskCategory
+  status         RiskStatus   @default(OPEN)
+  mitigationPlan String?
+  aiSuggestions  Json?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
 
   vendorId        String?
-  vendor          Vendor?       @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  vendor          Vendor?        @relation(fields: [vendorId], references: [id], onDelete: Cascade)
   changeRequestId String?
   changeRequest   ChangeRequest? @relation(fields: [changeRequestId], references: [id], onDelete: SetNull)
   createdById     String
-  createdBy       User          @relation("RiskCreator", fields: [createdById], references: [id])
+  createdBy       User           @relation("RiskCreator", fields: [createdById], references: [id])
 
   @@index([vendorId])
   @@index([changeRequestId])
@@ -1078,21 +1090,175 @@ model Risk {
 }
 
 model Playbook {
-  id                String        @id @default(cuid())
-  name              String
-  description       String?
-  category          RiskCategory
-  triggerCondition  String?
-  steps             Json
-  isSystemProvided  Boolean       @default(false)
-  isActive          Boolean       @default(true)
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
+  id               String       @id @default(cuid())
+  name             String
+  description      String?
+  category         RiskCategory
+  triggerCondition String?
+  steps            Json
+  isSystemProvided Boolean      @default(false)
+  isActive         Boolean      @default(true)
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
 
-  teamId            String
-  team              Team          @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  teamId String
+  team   Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
 
   @@index([teamId])
   @@index([category])
   @@index([isActive])
+}
+
+// ============================================
+// Knowledge Base Models
+// ============================================
+
+enum KBFolderType {
+  GENERAL
+  MEETING_TRANSCRIPTS
+  UPLOADS
+}
+
+enum KBFileType {
+  PDF
+  IMAGE
+  MARKDOWN
+  TEXT
+  AUDIO
+  TRANSCRIPT
+  OTHER
+}
+
+enum KBDocumentSource {
+  UPLOAD
+  MEETING_TRANSCRIPT
+  AI_GENERATED
+  INTEGRATION
+}
+
+model KnowledgeBase {
+  id          String   @id @default(cuid())
+  teamId      String
+  name        String
+  description String?
+  createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  team            Team                @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  createdBy       User                @relation("KBCreatedBy", fields: [createdById], references: [id])
+  folders         KBFolder[]
+  documents       KBDocument[]
+  projectSettings KBProjectSettings[]
+
+  @@index([teamId])
+}
+
+model KBFolder {
+  id              String       @id @default(cuid())
+  knowledgeBaseId String
+  parentFolderId  String?
+  name            String
+  description     String?
+  type            KBFolderType @default(GENERAL)
+  projectId       String?
+  createdById     String
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  knowledgeBase   KnowledgeBase       @relation(fields: [knowledgeBaseId], references: [id], onDelete: Cascade)
+  parentFolder    KBFolder?           @relation("FolderHierarchy", fields: [parentFolderId], references: [id])
+  children        KBFolder[]          @relation("FolderHierarchy")
+  project         Space?              @relation(fields: [projectId], references: [id])
+  createdBy       User                @relation("KBFolderCreatedBy", fields: [createdById], references: [id])
+  documents       KBDocument[]
+  projectSettings KBProjectSettings[] @relation("TranscriptFolder")
+
+  @@index([knowledgeBaseId])
+  @@index([parentFolderId])
+  @@index([projectId])
+}
+
+model KBDocument {
+  id                String           @id @default(cuid())
+  folderId          String
+  knowledgeBaseId   String
+  title             String
+  description       String?
+  fileType          KBFileType
+  mimeType          String
+  fileSize          Int
+  fileUrl           String
+  storageKey        String
+  content           String?
+  pineconeId        String?
+  source            KBDocumentSource @default(UPLOAD)
+  sourceReferenceId String?
+  tags              String[]
+  metadata          Json?
+  isArchived        Boolean          @default(false)
+  currentVersion    Int              @default(1)
+  uploadedById      String
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  folder        KBFolder            @relation(fields: [folderId], references: [id], onDelete: Cascade)
+  knowledgeBase KnowledgeBase       @relation(fields: [knowledgeBaseId], references: [id], onDelete: Cascade)
+  uploadedBy    User                @relation("KBDocUploadedBy", fields: [uploadedById], references: [id])
+  versions      KBDocumentVersion[]
+  favorites     KBFavorite[]
+
+  @@index([folderId])
+  @@index([knowledgeBaseId])
+  @@index([uploadedById])
+  @@index([source])
+  @@index([isArchived])
+}
+
+model KBDocumentVersion {
+  id            String   @id @default(cuid())
+  documentId    String
+  versionNumber Int
+  fileUrl       String
+  storageKey    String
+  fileSize      Int
+  content       String?
+  pineconeId    String?
+  changeNote    String?
+  uploadedById  String
+  createdAt     DateTime @default(now())
+
+  document   KBDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  uploadedBy User       @relation("KBVersionUploadedBy", fields: [uploadedById], references: [id])
+
+  @@index([documentId])
+}
+
+model KBFavorite {
+  id         String   @id @default(cuid())
+  userId     String
+  documentId String
+  createdAt  DateTime @default(now())
+
+  user     User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  document KBDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, documentId])
+  @@index([userId])
+}
+
+model KBProjectSettings {
+  id                  String   @id @default(cuid())
+  projectId           String   @unique
+  knowledgeBaseId     String
+  autoSaveTranscripts Boolean  @default(true)
+  transcriptFolderId  String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  project          Space         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  knowledgeBase    KnowledgeBase @relation(fields: [knowledgeBaseId], references: [id], onDelete: Cascade)
+  transcriptFolder KBFolder?     @relation("TranscriptFolder", fields: [transcriptFolderId], references: [id])
+
+  @@index([knowledgeBaseId])
 }
