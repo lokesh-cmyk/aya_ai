@@ -14,6 +14,9 @@ import { COMPOSIO_APPS, getComposio, getComposioSessionTools, getIntegrationsCal
 import { getToolDisplayName, summarizeToolResult } from '@/lib/tool-display-names';
 import { getSearchAndWeatherTools, getKBSearchTool } from '@/lib/tools';
 
+// AI chat with tool calls (RAG, web search, integrations) can take time
+export const maxDuration = 60;
+
 export type ConnectAction = { connectLink: string; connectAppName: string };
 
 // All available integrations in the platform

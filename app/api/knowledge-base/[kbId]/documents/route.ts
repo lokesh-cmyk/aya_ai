@@ -285,12 +285,19 @@ export async function POST(
       const fileBuffer = Buffer.from(await file.arrayBuffer());
       const uploadResult = await storage.upload(storageKey, fileBuffer, mimeType);
 
-      // Update document with storage URL and key
+      // For text-based files, extract content synchronously so search works immediately
+      let extractedContent: string | null = null;
+      if (fileType === KBFileType.TEXT || fileType === KBFileType.MARKDOWN) {
+        extractedContent = fileBuffer.toString('utf-8');
+      }
+
+      // Update document with storage URL, key, and any extracted content
       const updatedDocument = await prisma.kBDocument.update({
         where: { id: document.id },
         data: {
           fileUrl: uploadResult.url,
           storageKey: uploadResult.key,
+          ...(extractedContent ? { content: extractedContent } : {}),
         },
         include: {
           uploadedBy: { select: { id: true, name: true } },
@@ -299,14 +306,19 @@ export async function POST(
         },
       });
 
-      // Send Inngest event for background processing
-      await inngest.send({
-        name: 'kb/document.process',
-        data: {
-          documentId: document.id,
-          teamId: user.teamId,
-        },
-      });
+      // Send Inngest event for background processing (embeddings + PDF extraction)
+      try {
+        await inngest.send({
+          name: 'kb/document.process',
+          data: {
+            documentId: document.id,
+            teamId: user.teamId,
+          },
+        });
+      } catch (inngestError) {
+        // Don't fail the upload if Inngest is unavailable — content is already saved for text files
+        console.warn('[KB Documents POST] Inngest send failed (document still uploaded):', inngestError);
+      }
 
       return NextResponse.json({ document: updatedDocument }, { status: 201 });
     } catch (uploadError) {

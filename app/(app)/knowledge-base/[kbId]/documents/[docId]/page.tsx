@@ -10,6 +10,7 @@ import {
   FileText,
   Tag,
   History,
+  RefreshCw,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -19,6 +20,8 @@ import { useKBDocument, useToggleKBFavorite, useKnowledgeBase } from "@/hooks/us
 import { KBBreadcrumb } from "@/components/knowledge-base/KBBreadcrumb";
 import { formatDistanceToNow } from "date-fns";
 import ReactMarkdown from "react-markdown";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 export default function DocumentPage({
   params,
@@ -29,6 +32,25 @@ export default function DocumentPage({
   const { data: kb } = useKnowledgeBase(kbId);
   const { data, isLoading } = useKBDocument(kbId, docId);
   const toggleFavorite = useToggleKBFavorite(kbId);
+  const queryClient = useQueryClient();
+
+  const reprocessMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(
+        `/api/knowledge-base/${kbId}/documents/${docId}/reprocess`,
+        { method: "POST" }
+      );
+      if (!res.ok) throw new Error("Failed to trigger reprocessing");
+      return res.json();
+    },
+    onSuccess: () => {
+      toast.success("Document reprocessing triggered — embeddings will be generated shortly");
+      queryClient.invalidateQueries({ queryKey: ["kb-document", kbId, docId] });
+    },
+    onError: () => {
+      toast.error("Failed to trigger reprocessing");
+    },
+  });
 
   const basePath = `/knowledge-base/${kbId}`;
   const doc = data?.document;
@@ -112,6 +134,17 @@ export default function DocumentPage({
               }
             />
           </Button>
+          {!doc.pineconeId && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => reprocessMutation.mutate()}
+              disabled={reprocessMutation.isPending}
+            >
+              <RefreshCw className={`w-4 h-4 mr-1.5 ${reprocessMutation.isPending ? "animate-spin" : ""}`} />
+              {reprocessMutation.isPending ? "Processing..." : "Generate Embeddings"}
+            </Button>
+          )}
           {doc.signedUrl && (
             <a href={doc.signedUrl} target="_blank" rel="noopener noreferrer">
               <Button variant="outline" size="sm">
@@ -207,14 +240,25 @@ function DocumentPreview({ doc }: { doc: any }) {
     );
   }
 
-  if (doc.fileType === "PDF" && doc.signedUrl) {
-    return (
-      <iframe
-        src={doc.signedUrl}
-        className="w-full h-[600px] rounded-lg border"
-        title={doc.title}
-      />
-    );
+  if (doc.fileType === "PDF") {
+    // Try signed URL first for native PDF rendering
+    if (doc.signedUrl) {
+      return (
+        <iframe
+          src={doc.signedUrl}
+          className="w-full h-[600px] rounded-lg border"
+          title={doc.title}
+        />
+      );
+    }
+    // Fall back to extracted text content if available
+    if (doc.content) {
+      return (
+        <pre className="whitespace-pre-wrap text-sm text-gray-700 bg-gray-50 p-4 rounded-lg max-h-[600px] overflow-y-auto font-mono">
+          {doc.content}
+        </pre>
+      );
+    }
   }
 
   if (doc.fileType === "MARKDOWN" && doc.content) {
@@ -241,6 +285,15 @@ function DocumentPreview({ doc }: { doc: any }) {
       <div className="flex justify-center py-8">
         <audio controls src={doc.signedUrl} className="w-full max-w-md" />
       </div>
+    );
+  }
+
+  // Fallback: if we have any content, show it as plain text
+  if (doc.content) {
+    return (
+      <pre className="whitespace-pre-wrap text-sm text-gray-700 bg-gray-50 p-4 rounded-lg max-h-[600px] overflow-y-auto font-mono">
+        {doc.content}
+      </pre>
     );
   }
 

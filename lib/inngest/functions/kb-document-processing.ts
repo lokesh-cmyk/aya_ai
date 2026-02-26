@@ -49,7 +49,16 @@ export const processKBDocument = inngest.createFunction(
     }
 
     // Step 2: Extract text content from the file
+    // For TEXT/MARKDOWN/TRANSCRIPT, content may already be saved in DB during upload
     const content = await step.run("extract-text", async () => {
+      // If content is already available in DB (saved during upload), use it directly
+      if (document.content && document.content.trim().length > 0) {
+        console.log(
+          `[kb-process] Using pre-extracted content for document ${documentId}`
+        );
+        return document.content;
+      }
+
       switch (document.fileType) {
         case KBFileType.TEXT:
         case KBFileType.MARKDOWN: {
@@ -59,8 +68,7 @@ export const processKBDocument = inngest.createFunction(
         }
 
         case KBFileType.TRANSCRIPT: {
-          // Transcript documents already have content stored in DB
-          return document.content || "";
+          return "";
         }
 
         case KBFileType.PDF: {

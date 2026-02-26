@@ -5,6 +5,9 @@ import { getSessionCookie } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { getStorageProvider } from '@/lib/storage';
 
+// Allow up to 30s for this route (signed URL generation + DB queries)
+export const maxDuration = 30;
+
 // Get a single document with detail
 export async function GET(
   request: NextRequest,
