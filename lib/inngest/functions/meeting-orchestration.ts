@@ -851,6 +851,26 @@ export const handleTranscriptionReady = inngest.createFunction(
       });
     });
 
+    // Save transcript to Knowledge Base (if auto-save configured)
+    await step.run("trigger-kb-save", async () => {
+      const meeting = await prisma.meeting.findUnique({
+        where: { id: meetingId },
+        select: { title: true, teamId: true },
+      });
+
+      if (meeting?.teamId) {
+        await inngest.send({
+          name: "kb/meeting-transcript.save",
+          data: {
+            meetingId,
+            teamId: meeting.teamId,
+            transcriptText: transcript.full_text,
+            meetingTitle: meeting.title || "Meeting",
+          },
+        });
+      }
+    });
+
     return { success: true, meetingId };
   }
 );

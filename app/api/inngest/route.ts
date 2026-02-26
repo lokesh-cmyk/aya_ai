@@ -34,6 +34,10 @@ import {
   vendorSLACheck,
 } from "@/lib/inngest/functions/vendor-monitoring";
 import { detectVendorChangeFromInbox } from "@/lib/inngest/functions/vendor-inbox-detection";
+import {
+  processKBDocument,
+  saveMeetingTranscriptToKB,
+} from "@/lib/inngest/functions/kb-document-processing";
 
 // Create an API that serves Inngest functions
 export const { GET, POST, PUT } = serve({
@@ -72,5 +76,8 @@ export const { GET, POST, PUT } = serve({
     vendorSLACheck, // Cron: SLA breach detection and auto-risk creation
     // Vendor inbox AI detection
     detectVendorChangeFromInbox, // AI-powered change request detection from inbox messages
+    // Knowledge Base document processing
+    processKBDocument, // Process uploaded KB documents (text extraction + embeddings)
+    saveMeetingTranscriptToKB, // Auto-save meeting transcripts to project KB
   ],
 });
