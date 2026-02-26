@@ -9,6 +9,7 @@ import {
   FileText,
   FolderOpen,
   Loader2,
+  RefreshCw,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -36,6 +37,24 @@ export default function KnowledgeBasePage() {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [newKBName, setNewKBName] = useState("");
   const [newKBDescription, setNewKBDescription] = useState("");
+  const [isIndexing, setIsIndexing] = useState(false);
+
+  const handleIndexAll = async () => {
+    setIsIndexing(true);
+    try {
+      const res = await fetch("/api/knowledge-base/process-all", { method: "POST" });
+      const data = await res.json();
+      if (data.success) {
+        toast.success(`Indexed ${data.indexed} documents (${data.skipped} skipped, ${data.errors} errors)`);
+      } else {
+        toast.error(data.error || "Indexing failed");
+      }
+    } catch {
+      toast.error("Failed to index documents");
+    } finally {
+      setIsIndexing(false);
+    }
+  };
 
   const handleCreateKB = async () => {
     if (!newKBName.trim()) return;
@@ -81,13 +100,22 @@ export default function KnowledgeBasePage() {
             Store, organize, and search your team's documents and files
           </p>
         </div>
-        <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="w-4 h-4 mr-2" />
-              New Knowledge Base
-            </Button>
-          </DialogTrigger>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={handleIndexAll}
+            disabled={isIndexing}
+          >
+            <RefreshCw className={`w-4 h-4 mr-2 ${isIndexing ? "animate-spin" : ""}`} />
+            {isIndexing ? "Indexing..." : "Index All for AI"}
+          </Button>
+          <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="w-4 h-4 mr-2" />
+                New Knowledge Base
+              </Button>
+            </DialogTrigger>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Create Knowledge Base</DialogTitle>
@@ -130,6 +158,7 @@ export default function KnowledgeBasePage() {
             </div>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       {/* Stats */}
