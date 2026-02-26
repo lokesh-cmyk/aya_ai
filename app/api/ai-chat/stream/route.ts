@@ -12,7 +12,7 @@ import {
 } from '@/lib/mem0';
 import { COMPOSIO_APPS, getComposio, getComposioSessionTools, getIntegrationsCallbackUrl } from '@/lib/composio-tools';
 import { getToolDisplayName, summarizeToolResult } from '@/lib/tool-display-names';
-import { getSearchAndWeatherTools } from '@/lib/tools';
+import { getSearchAndWeatherTools, getKBSearchTool } from '@/lib/tools';
 
 export type ConnectAction = { connectLink: string; connectAppName: string };
 
@@ -422,7 +422,9 @@ export async function POST(request: NextRequest) {
 
     // Load web search & weather tools (always available, no OAuth needed)
     const searchWeatherTools = getSearchAndWeatherTools();
-    composioTools = { ...composioTools, ...searchWeatherTools } as import('ai').ToolSet;
+    // Load KB search tool scoped to user's team (strict data isolation)
+    const kbSearchTools = getKBSearchTool(user?.teamId || '');
+    composioTools = { ...composioTools, ...searchWeatherTools, ...kbSearchTools } as import('ai').ToolSet;
 
     // Get connected integrations
     const integrations = await getConnectedIntegrations(session.user.id, user?.teamId);
@@ -789,6 +791,21 @@ You have built-in web_search and get_weather tools (no OAuth connection needed):
 
 - **Web Search:** When users ask to search the web, look something up, or ask about current events/news/facts, use the web_search tool. Present results as a numbered list with **title**, snippet, and [link](url).
 - **Weather:** When users ask about weather, temperature, or conditions for any location, use the get_weather tool. ALWAYS present the result using the weather_card component block — pass the tool result directly as JSON inside the component block.
+
+## Knowledge Base Search
+
+You have a kb_search tool that searches the team's Knowledge Base for internal documents, files, meeting transcripts, and stored information. Use it when users ask about:
+- Internal documents, policies, procedures, or guidelines
+- Project files, reports, or specifications
+- Meeting notes, transcripts, or action items from past meetings
+- Any information that might be stored in the team's knowledge base
+- Questions like "What did we discuss in...", "Find the document about...", "What's our policy on..."
+
+When presenting KB search results:
+- Cite the document title and source for each piece of information
+- Include the document link so the user can open the full document
+- If multiple documents are relevant, synthesize the information and cite all sources
+- If no results are found, let the user know and suggest they check the Knowledge Base directly or upload the relevant documents
 
 ## Conversational Guidance
 

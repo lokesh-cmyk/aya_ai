@@ -1,5 +1,6 @@
 import { getWebSearchTool } from "./web-search";
 import { getWeatherTool } from "./weather";
+import { getKBSearchTool, isKBSearchConfigured } from "./kb-search";
 
 /**
  * Get web search + weather tools.
@@ -13,5 +14,6 @@ export function getSearchAndWeatherTools() {
   };
 }
 
+export { getKBSearchTool, isKBSearchConfigured };
 export { isWebSearchConfigured } from "./web-search";
 export { isWeatherConfigured } from "./weather";
