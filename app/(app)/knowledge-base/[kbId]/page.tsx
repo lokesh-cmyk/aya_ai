@@ -16,11 +16,14 @@ import {
   useKnowledgeBase,
   useKBDocuments,
   useCreateKBFolder,
+  useRenameKBFolder,
+  useDeleteKBFolder,
 } from "@/hooks/useKnowledgeBase";
 import { KBFolderSidebar } from "@/components/knowledge-base/KBFolderSidebar";
 import { KBDocumentGrid } from "@/components/knowledge-base/KBDocumentGrid";
 import { KBSearchBar } from "@/components/knowledge-base/KBSearchBar";
 import { KBUploadZone } from "@/components/knowledge-base/KBUploadZone";
+import { KBBreadcrumb } from "@/components/knowledge-base/KBBreadcrumb";
 import { toast } from "sonner";
 
 export default function KBDetailPage({
@@ -32,12 +35,17 @@ export default function KBDetailPage({
   const { data: kb, isLoading: kbLoading } = useKnowledgeBase(kbId);
   const { data: docsData, isLoading: docsLoading } = useKBDocuments(kbId);
   const createFolder = useCreateKBFolder(kbId);
+  const renameFolder = useRenameKBFolder(kbId);
+  const deleteFolder = useDeleteKBFolder(kbId);
   const [showNewFolder, setShowNewFolder] = useState(false);
   const [showUpload, setShowUpload] = useState(false);
+  const [showRenameFolder, setShowRenameFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
   const [newFolderParentId, setNewFolderParentId] = useState<
     string | undefined
   >();
+  const [renameFolderId, setRenameFolderId] = useState("");
+  const [renameFolderName, setRenameFolderName] = useState("");
 
   const basePath = `/knowledge-base/${kbId}`;
 
@@ -62,13 +70,35 @@ export default function KBDetailPage({
     setShowNewFolder(true);
   };
 
-  const handleFolderDelete = (folderId: string) => {
-    // This would use the delete mutation — kept simple for now
-    toast.info("Delete folder: " + folderId);
+  const handleFolderDelete = async (folderId: string) => {
+    try {
+      await deleteFolder.mutateAsync(folderId);
+      toast.success("Folder deleted");
+    } catch {
+      toast.error("Failed to delete folder");
+    }
   };
 
   const handleFolderRename = (folderId: string, currentName: string) => {
-    toast.info("Rename folder: " + currentName);
+    setRenameFolderId(folderId);
+    setRenameFolderName(currentName);
+    setShowRenameFolder(true);
+  };
+
+  const handleRenameSubmit = async () => {
+    if (!renameFolderName.trim()) return;
+    try {
+      await renameFolder.mutateAsync({
+        folderId: renameFolderId,
+        name: renameFolderName.trim(),
+      });
+      toast.success("Folder renamed");
+      setShowRenameFolder(false);
+      setRenameFolderId("");
+      setRenameFolderName("");
+    } catch {
+      toast.error("Failed to rename folder");
+    }
   };
 
   if (kbLoading) {
@@ -103,14 +133,16 @@ export default function KBDetailPage({
 
   return (
     <div className="h-full flex flex-col">
-      {/* Header */}
-      <div className="p-4 border-b border-gray-200 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">{kb.name}</h1>
-          {kb.description && (
-            <p className="text-sm text-gray-500 mt-0.5">{kb.description}</p>
-          )}
-        </div>
+      {/* Breadcrumb + Header */}
+      <div className="p-4 border-b border-gray-200">
+        <KBBreadcrumb items={[{ label: kb.name }]} />
+        <div className="flex items-center justify-between mt-2">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">{kb.name}</h1>
+            {kb.description && (
+              <p className="text-sm text-gray-500 mt-0.5">{kb.description}</p>
+            )}
+          </div>
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
@@ -126,6 +158,7 @@ export default function KBDetailPage({
               Upload
             </Button>
           )}
+        </div>
         </div>
       </div>
 
@@ -169,7 +202,7 @@ export default function KBDetailPage({
             <DialogTitle>Create Folder</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 pt-4">
-            <div>
+            <div className="space-y-2">
               <Label htmlFor="folder-name">Folder Name</Label>
               <Input
                 id="folder-name"
@@ -211,6 +244,42 @@ export default function KBDetailPage({
                 onUploadComplete={() => setShowUpload(false)}
               />
             )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Rename Folder Dialog */}
+      <Dialog open={showRenameFolder} onOpenChange={setShowRenameFolder}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Rename Folder</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-4">
+            <div className="space-y-2">
+              <Label htmlFor="rename-folder">Folder Name</Label>
+              <Input
+                id="rename-folder"
+                value={renameFolderName}
+                onChange={(e) => setRenameFolderName(e.target.value)}
+                placeholder="Folder name"
+                onKeyDown={(e) => e.key === "Enter" && handleRenameSubmit()}
+                autoFocus
+              />
+            </div>
+            <Button
+              onClick={handleRenameSubmit}
+              disabled={!renameFolderName.trim() || renameFolder.isPending}
+              className="w-full"
+            >
+              {renameFolder.isPending ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Renaming...
+                </>
+              ) : (
+                "Rename"
+              )}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

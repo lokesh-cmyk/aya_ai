@@ -93,7 +93,7 @@ export default function KnowledgeBasePage() {
               <DialogTitle>Create Knowledge Base</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 pt-4">
-              <div>
+              <div className="space-y-2 bg-white/80 backdrop-blur-sm rounded-lg p-4">
                 <Label htmlFor="kb-name">Name</Label>
                 <Input
                   id="kb-name"
@@ -103,7 +103,7 @@ export default function KnowledgeBasePage() {
                   onKeyDown={(e) => e.key === "Enter" && handleCreateKB()}
                 />
               </div>
-              <div>
+              <div className="space-y-2 bg-white/80 backdrop-blur-sm rounded-lg p-4">
                 <Label htmlFor="kb-desc">Description (optional)</Label>
                 <Textarea
                   id="kb-desc"

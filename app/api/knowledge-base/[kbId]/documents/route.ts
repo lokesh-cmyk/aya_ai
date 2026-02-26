@@ -5,7 +5,7 @@ import { getSessionCookie } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { getStorageProvider, buildStorageKey } from '@/lib/storage';
 import { inngest } from '@/lib/inngest/client';
-import { KBFileType } from '@prisma/client';
+import { KBFileType } from '@/app/generated/prisma/enums';
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 

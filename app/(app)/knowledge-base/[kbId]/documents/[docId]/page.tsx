@@ -3,7 +3,6 @@
 import { use } from "react";
 import Link from "next/link";
 import {
-  ChevronRight,
   Download,
   Star,
   Clock,
@@ -16,7 +15,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useKBDocument, useToggleKBFavorite } from "@/hooks/useKnowledgeBase";
+import { useKBDocument, useToggleKBFavorite, useKnowledgeBase } from "@/hooks/useKnowledgeBase";
+import { KBBreadcrumb } from "@/components/knowledge-base/KBBreadcrumb";
 import { formatDistanceToNow } from "date-fns";
 import ReactMarkdown from "react-markdown";
 
@@ -26,6 +26,7 @@ export default function DocumentPage({
   params: Promise<{ kbId: string; docId: string }>;
 }) {
   const { kbId, docId } = use(params);
+  const { data: kb } = useKnowledgeBase(kbId);
   const { data, isLoading } = useKBDocument(kbId, docId);
   const toggleFavorite = useToggleKBFavorite(kbId);
 
@@ -59,28 +60,15 @@ export default function DocumentPage({
   return (
     <div className="p-6 space-y-6">
       {/* Breadcrumb */}
-      <div className="flex items-center gap-1 text-sm text-gray-500">
-        <Link href="/knowledge-base" className="hover:text-blue-600">
-          Knowledge Base
-        </Link>
-        <ChevronRight className="w-3 h-3" />
-        <Link href={basePath} className="hover:text-blue-600">
-          KB
-        </Link>
-        <ChevronRight className="w-3 h-3" />
-        {doc.folder && (
-          <>
-            <Link
-              href={`${basePath}/folders/${doc.folder.id}`}
-              className="hover:text-blue-600"
-            >
-              {doc.folder.name}
-            </Link>
-            <ChevronRight className="w-3 h-3" />
-          </>
-        )}
-        <span className="text-gray-900 font-medium truncate">{doc.title}</span>
-      </div>
+      <KBBreadcrumb
+        items={[
+          { label: kb?.name || "...", href: basePath },
+          ...(doc.folder
+            ? [{ label: doc.folder.name, href: `${basePath}/folders/${doc.folder.id}` }]
+            : []),
+          { label: doc.title },
+        ]}
+      />
 
       {/* Header */}
       <div className="flex items-start justify-between">

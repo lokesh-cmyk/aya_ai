@@ -84,6 +84,26 @@ export function useCreateKBFolder(kbId: string) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["kb-folders", kbId] });
+      queryClient.invalidateQueries({ queryKey: ["knowledge-base", kbId] });
+    },
+  });
+}
+
+export function useRenameKBFolder(kbId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ folderId, name }: { folderId: string; name: string }) => {
+      const res = await fetch(`/api/knowledge-base/${kbId}/folders/${folderId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      if (!res.ok) throw new Error("Failed to rename folder");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["kb-folders", kbId] });
+      queryClient.invalidateQueries({ queryKey: ["knowledge-base", kbId] });
     },
   });
 }
@@ -100,6 +120,7 @@ export function useDeleteKBFolder(kbId: string) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["kb-folders", kbId] });
+      queryClient.invalidateQueries({ queryKey: ["knowledge-base", kbId] });
     },
   });
 }
