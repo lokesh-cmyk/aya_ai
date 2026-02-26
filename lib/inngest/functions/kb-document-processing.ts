@@ -2,7 +2,7 @@ import { inngest } from "../client";
 import { prisma } from "@/lib/prisma";
 import { getStorageProvider, buildStorageKey } from "@/lib/storage";
 import { getKBIndex } from "@/lib/pinecone/client";
-import { chunkText, generateEmbeddings } from "@/lib/pinecone/embeddings";
+import { chunkText } from "@/lib/pinecone/embeddings";
 import {
   KBFileType,
   KBDocumentSource,
@@ -14,7 +14,7 @@ import {
  * 1. Fetch document metadata from DB
  * 2. Extract text content from the file
  * 3. Save extracted content back to DB
- * 4. Generate embeddings and upsert to Pinecone
+ * 4. Upsert text records to Pinecone (auto-embedded by llama-text-embed-v2)
  */
 export const processKBDocument = inngest.createFunction(
   { id: "process-kb-document" },
@@ -106,30 +106,27 @@ export const processKBDocument = inngest.createFunction(
       });
     });
 
-    // Step 4: Generate embeddings and upsert to Pinecone
-    await step.run("generate-embeddings", async () => {
+    // Step 4: Upsert text records to Pinecone
+    // Pinecone's integrated embedding (llama-text-embed-v2) auto-generates vectors
+    await step.run("upsert-to-pinecone", async () => {
       const chunks = chunkText(content);
-      const texts = chunks.map((c) => c.text);
-      const embeddings = await generateEmbeddings(texts);
       const index = getKBIndex();
 
-      const vectors = chunks.map((chunk, i) => ({
-        id: `${documentId}_chunk_${chunk.index}`,
-        values: embeddings[i],
-        metadata: {
-          documentId,
-          teamId,
-          folderId: document.folderId,
-          knowledgeBaseId: document.knowledgeBaseId,
-          fileType: document.fileType,
-          title: document.title,
-          tags: document.tags,
-          chunkIndex: chunk.index,
-          text: chunk.text.slice(0, 1000),
-        },
+      // Build integrated records — Pinecone auto-embeds the "text" field
+      const records = chunks.map((chunk) => ({
+        _id: `${documentId}_chunk_${chunk.index}`,
+        text: chunk.text.slice(0, 1000),
+        documentId,
+        teamId,
+        folderId: document.folderId || "",
+        knowledgeBaseId: document.knowledgeBaseId,
+        fileType: document.fileType,
+        title: document.title,
+        tags: (document.tags || []).join(","),
+        chunkIndex: String(chunk.index),
       }));
 
-      await index.namespace(teamId).upsert({ records: vectors });
+      await index.namespace(teamId).upsertRecords({ records });
 
       await prisma.kBDocument.update({
         where: { id: documentId },
@@ -165,8 +162,6 @@ export const saveMeetingTranscriptToKB = inngest.createFunction(
 
     // Step 1: Find team's KB + project settings with auto-save enabled
     const kbConfig = await step.run("find-kb-config", async () => {
-      // Find a KBProjectSettings with autoSaveTranscripts enabled
-      // that belongs to a KnowledgeBase owned by this team
       const settings = await prisma.kBProjectSettings.findFirst({
         where: {
           autoSaveTranscripts: true,
@@ -200,7 +195,6 @@ export const saveMeetingTranscriptToKB = inngest.createFunction(
         let folderId = kbConfig.transcriptFolderId;
 
         if (!folderId) {
-          // Auto-create a "Meeting Transcripts" folder
           const folder = await prisma.kBFolder.create({
             data: {
               knowledgeBaseId,
@@ -211,7 +205,6 @@ export const saveMeetingTranscriptToKB = inngest.createFunction(
           });
           folderId = folder.id;
 
-          // Update the project settings with the new folder
           await prisma.kBProjectSettings.update({
             where: { id: kbConfig.id },
             data: { transcriptFolderId: folderId },
@@ -226,7 +219,7 @@ export const saveMeetingTranscriptToKB = inngest.createFunction(
           teamId,
           knowledgeBaseId,
           folderId,
-          meetingId, // use meetingId as a unique identifier for the storage path
+          meetingId,
           filename
         );
 
@@ -236,7 +229,6 @@ export const saveMeetingTranscriptToKB = inngest.createFunction(
           "text/plain"
         );
 
-        // Create the KBDocument record
         const doc = await prisma.kBDocument.create({
           data: {
             folderId,

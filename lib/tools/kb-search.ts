@@ -1,7 +1,6 @@
 import { tool } from "ai";
 import { z } from "zod";
 import { getKBIndex } from "@/lib/pinecone/client";
-import { generateSingleEmbedding } from "@/lib/pinecone/embeddings";
 import { prisma } from "@/lib/prisma";
 
 export function isKBSearchConfigured(): boolean {
@@ -10,8 +9,8 @@ export function isKBSearchConfigured(): boolean {
 
 /**
  * Returns the KB search tool scoped to a specific team.
- * The teamId parameter ensures strict data isolation — only documents
- * belonging to the user's team are ever returned.
+ * Uses Pinecone's integrated embedding (llama-text-embed-v2) for search —
+ * no manual embedding generation needed.
  */
 export function getKBSearchTool(teamId: string) {
   if (!teamId || !process.env.PINECONE_API_KEY) return {};
@@ -33,19 +32,29 @@ export function getKBSearchTool(teamId: string) {
       }),
       execute: async ({ query, max_results }) => {
         try {
-          // Generate embedding for the search query
-          const queryEmbedding = await generateSingleEmbedding(query);
           const index = getKBIndex();
 
-          // Query Pinecone — namespaced by teamId for strict isolation
-          const pineconeResults = await index.namespace(teamId).query({
-            vector: queryEmbedding,
-            topK: max_results ?? 5,
-            filter: { teamId },
-            includeMetadata: true,
+          // Search using Pinecone's integrated embedding (auto-embeds the query text)
+          const searchResults = await index.namespace(teamId).searchRecords({
+            query: {
+              topK: max_results ?? 5,
+              inputs: { text: query },
+            },
+            fields: [
+              "text",
+              "documentId",
+              "title",
+              "fileType",
+              "folderId",
+              "knowledgeBaseId",
+              "tags",
+              "chunkIndex",
+            ],
           });
 
-          if (!pineconeResults.matches?.length) {
+          const hits = searchResults.result?.hits || [];
+
+          if (!hits.length) {
             // Fall back to keyword search in PostgreSQL
             const keywordResults = await prisma.kBDocument.findMany({
               where: {
@@ -95,11 +104,12 @@ export function getKBSearchTool(teamId: string) {
             };
           }
 
-          // Get unique document IDs from Pinecone results
+          // Extract unique document IDs from search hits
+          type HitFields = Record<string, unknown>;
           const documentIds = [
             ...new Set(
-              pineconeResults.matches
-                .map((m) => m.metadata?.documentId as string)
+              hits
+                .map((h) => (h.fields as HitFields)?.documentId as string)
                 .filter(Boolean)
             ),
           ];
@@ -123,19 +133,20 @@ export function getKBSearchTool(teamId: string) {
             },
           });
 
-          // Build results with Pinecone chunk text for context
+          // Build results combining Pinecone hits with DB metadata
           const docMap = new Map(documents.map((d) => [d.id, d]));
-          const results = pineconeResults.matches
-            .filter((m) => docMap.has(m.metadata?.documentId as string))
-            .map((match) => {
-              const doc = docMap.get(match.metadata?.documentId as string)!;
-              const chunkText = (match.metadata?.text as string) || "";
+          const results = hits
+            .filter((h) => docMap.has((h.fields as HitFields)?.documentId as string))
+            .map((hit) => {
+              const fields = hit.fields as HitFields;
+              const doc = docMap.get(fields?.documentId as string)!;
+              const chunkText = (fields?.text as string) || "";
 
               return {
                 documentId: doc.id,
                 title: doc.title,
                 excerpt: chunkText || doc.content?.substring(0, 500) || "",
-                relevanceScore: match.score || 0,
+                relevanceScore: hit._score || 0,
                 fileType: doc.fileType,
                 source: doc.source,
                 folder: doc.folder?.name || "Root",

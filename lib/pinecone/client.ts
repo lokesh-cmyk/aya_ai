@@ -15,5 +15,11 @@ export function getPineconeClient(): Pinecone {
 export function getKBIndex() {
   const client = getPineconeClient();
   const indexName = process.env.PINECONE_INDEX || "aya-knowledge-base";
+  const host = process.env.PINECONE_HOST;
+
+  // Pinecone SDK v7 requires the host URL to connect directly to the index
+  if (host) {
+    return client.index(indexName, host);
+  }
   return client.index(indexName);
 }

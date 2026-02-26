@@ -4,7 +4,6 @@ import { cookies } from "next/headers";
 import { getSessionCookie } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getKBIndex } from "@/lib/pinecone/client";
-import { generateSingleEmbedding } from "@/lib/pinecone/embeddings";
 
 type SearchMode = "keyword" | "semantic" | "hybrid";
 
@@ -124,26 +123,28 @@ export async function POST(
       }
     }
 
-    // Tier 2: Semantic search via Pinecone (when mode is "semantic" or "hybrid")
+    // Tier 2: Semantic search via Pinecone integrated embedding
     if (mode === "semantic" || mode === "hybrid") {
       try {
-        const queryEmbedding = await generateSingleEmbedding(query);
         const index = getKBIndex();
 
-        const filter: any = { teamId: user.teamId };
-        if (folderId) filter.folderId = folderId;
-        if (fileTypes?.length) filter.fileType = { $in: fileTypes };
+        // Use Pinecone's integrated embedding — auto-embeds the query text
+        const searchResults = await index
+          .namespace(user.teamId)
+          .searchRecords({
+            query: {
+              topK: limit,
+              inputs: { text: query },
+            },
+            fields: ["text", "documentId", "title", "fileType", "tags"],
+          });
 
-        const pineconeResults = await index.namespace(user.teamId).query({
-          vector: queryEmbedding,
-          topK: limit,
-          filter,
-          includeMetadata: true,
-        });
+        const hits = searchResults.result?.hits || [];
+        type HitFields = Record<string, unknown>;
 
-        if (pineconeResults.matches?.length) {
-          const documentIds = pineconeResults.matches
-            .map((m) => m.metadata?.documentId as string)
+        if (hits.length) {
+          const documentIds = hits
+            .map((h) => (h.fields as HitFields)?.documentId as string)
             .filter(Boolean)
             .filter((id) => !seenIds.has(id));
 
@@ -157,10 +158,7 @@ export async function POST(
             });
 
             const scoreMap = new Map(
-              pineconeResults.matches.map((m) => [
-                m.metadata?.documentId,
-                m.score,
-              ])
+              hits.map((h) => [(h.fields as HitFields)?.documentId, h._score])
             );
 
             for (const doc of semanticDocs) {

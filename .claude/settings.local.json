@@ -8,7 +8,8 @@
       "Bash(wc:*)",
       "WebFetch(domain:www.patterns.dev)",
       "Bash(find:*)",
-      "WebFetch(domain:docs.mem0.ai)"
+      "WebFetch(domain:docs.mem0.ai)",
+      "WebFetch(domain:docs.pinecone.io)"
     ]
   }
 }
