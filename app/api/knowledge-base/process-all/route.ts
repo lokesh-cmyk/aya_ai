@@ -91,13 +91,9 @@ export async function POST(request: NextRequest) {
             }
             case KBFileType.PDF: {
               const buffer = await storage.download(doc.storageKey);
-              const { PDFParse } = await import("pdf-parse");
-              const parser = new PDFParse({
-                data: new Uint8Array(buffer),
-              });
-              const result = await parser.getText();
-              await parser.destroy();
-              content = result.text;
+              const { extractText } = await import("unpdf");
+              const pdfResult = await extractText(new Uint8Array(buffer));
+              content = Array.isArray(pdfResult.text) ? pdfResult.text.join("\n") : pdfResult.text;
               break;
             }
             default:

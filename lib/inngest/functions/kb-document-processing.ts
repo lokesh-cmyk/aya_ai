@@ -74,11 +74,9 @@ export const processKBDocument = inngest.createFunction(
         case KBFileType.PDF: {
           const storage = getStorageProvider();
           const buffer = await storage.download(document.storageKey);
-          const { PDFParse } = await import("pdf-parse");
-          const parser = new PDFParse({ data: new Uint8Array(buffer) });
-          const result = await parser.getText();
-          await parser.destroy();
-          return result.text;
+          const { extractText } = await import("unpdf");
+          const { text } = await extractText(new Uint8Array(buffer));
+          return Array.isArray(text) ? text.join("\n") : text;
         }
 
         case KBFileType.IMAGE:
